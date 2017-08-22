@@ -29,3 +29,30 @@
     resource: "assets"
     user_agent: "assets_convoy"
   version: 1
+
+  formatters:
+    simple:
+      format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+  handlers:
+    console:
+      class: logging.StreamHandler
+      level: DEBUG
+      formatter: simple
+      stream: ext://sys.stdout
+
+
+  loggers:
+    openregistry.convoy.convoy:
+      handlers: [console]
+      propagate: no
+      level: DEBUG
+
+    openregistry.convoy.utils:
+      handlers: [console]
+      propagate: no
+      level: DEBUG
+
+    "":
+      handlers: [console]
+      level: DEBUG

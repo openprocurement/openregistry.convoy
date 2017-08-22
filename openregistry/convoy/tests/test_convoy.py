@@ -77,7 +77,7 @@ class TestConvoySuite(unittest.TestCase):
 
     def test__create_items_from_assets(self):
         items_keys = ['classification', 'additionalClassifications', 'address',
-                      'unit', 'quantity', 'location', 'assetCustodian', 'id']
+                      'unit', 'quantity', 'location', 'id']
         documents_keys = ['hash', 'description', 'title', 'format',
                           'documentType']
         with open('{}/asset.json'.format(self.test_files_path), 'r') as af:
@@ -109,6 +109,9 @@ class TestConvoySuite(unittest.TestCase):
         self.assertEqual(len(items), 1)
         self.assertEqual(len(documents), 1)
         for k in items_keys:
+            # Skip this key because hard code changing from CPVS to CAV
+            if k == 'classification':
+                continue
             self.assertEqual(asset_dict['data'].get(k), items[0].get(k))
         for k in documents_keys:
             self.assertEqual(documents[0].get(k),
@@ -188,7 +191,7 @@ class TestConvoySuite(unittest.TestCase):
         self.assertEqual(convoy.documents_transfer_queue.qsize(), 1)
         convoy.lots_client.get_lot.assert_called_with(a_doc['lotID'])
         convoy.lots_client.patch_resource_item.assert_called_with({'data': {
-            'status': 'verification',
+            'status': 'active.auction',
             'id': a_doc['lotID'],
             'assets': ['580d38b347134ac6b0ee3f04e34b9770']
         }})
