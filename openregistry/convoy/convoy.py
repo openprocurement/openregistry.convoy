@@ -10,7 +10,7 @@ import argparse
 from yaml import load
 from uuid import uuid4
 from openprocurement_client.client import TendersClient as APIClient
-from openregistry.convoy.utils import continuous_changes_feed
+from openregistry.convoy.utils import continuous_changes_feed, push_filter_doc
 from openprocurement_client.document_service_client import (
     DocumentServiceClient as DSClient
 )
@@ -55,20 +55,25 @@ class Convoy(object):
                     **self.convoy_conf['couchdb']),
                 session=Session(retry_delays=range(10)))[
                     self.convoy_conf['couchdb']['db']]
+        push_filter_doc(self.db)
+        LOGGER.info('Init Convoy...')
 
     def _create_items_from_assets(self, assets_ids):
         items = []
         documents = []
         keys = ['classification', 'additionalClassifications', 'address',
-                'unit', 'quantity', 'location', 'assetCustodian', 'id']
+                'unit', 'quantity', 'location', 'id']
         document_keys = ['hash', 'description', 'title', 'url', 'format',
                          'documentType']
         for asset_id in assets_ids:
             asset = self.assets_client.get_asset(asset_id)
             item = {k: asset.data[k] for k in keys if k in asset.data}
             item['description'] = asset.data.title
+            # TODO: Fix CAV <--> CPV
+            item['classification']['scheme'] = 'CAV'
             items.append(item)
             if 'documents' not in asset.data:
+                LOGGER.debug('Asset {} without documents'.format(asset_id))
                 continue
             for doc in asset.data.documents:
                 item_document = {
@@ -94,12 +99,16 @@ class Convoy(object):
         # Get lot
         lot = self.lots_client.get_lot(lot_id)
         if lot.data.status != u'active.salable':
-            LOGGER.warning('Lot status \'{}\' not equal \'salable\''.format(
-                lot.data.status), extra={'MESSAGE_ID': 'invalid_lot_status'})
+            # lot['data']['status'] = 'active.salable'
+            # self.lots_client.patch_resource_item(lot)
+            LOGGER.warning(
+                'Lot status \'{}\' not equal \'active.salable\''.format(
+                    lot.data.status),
+                extra={'MESSAGE_ID': 'invalid_lot_status'})
             return
 
         # Lock lot
-        lot.data['status'] = 'verification'
+        lot.data['status'] = 'active.awaiting'
         LOGGER.debug('Lock lot {}'.format(lot.data.id),
                      extra={'MESSAGE_ID': 'lock_lot'})
         self.lots_client.patch_resource_item(lot)
@@ -114,10 +123,11 @@ class Convoy(object):
         self.api_client.patch_resource_item(api_auction_doc)
 
         # Add documents to CDB
-        if len(documents) > 0:
-            for document in documents:
-                self.api_client.create_thin_document(api_auction_doc, document)
+        for document in documents:
+            self.api_client.create_thin_document(api_auction_doc, document)
 
+        lot['data']['status'] = 'active.auction'
+        self.lots_client.patch_resource_item(lot)
         return api_auction_doc
 
     def switch_auction_to_active_tendering(self, auction):
@@ -128,6 +138,8 @@ class Convoy(object):
         # https://github.com/openprocurement/openprocurement.client.python.git
         # branch: use_request
         self.api_client.patch_resource_item(auction)
+        LOGGER.info('Switch auction {} to status {}'.format(
+            auction['data']['id'], auction['data']['status']))
 
     def file_bridge(self):
         while not self.stop_transmitting:
@@ -150,6 +162,7 @@ class Convoy(object):
         self.transmitter = spawn(self.file_bridge)
         sleep(1)
         for auction_info in continuous_changes_feed(self.db):
+            LOGGER.info('Received auction {}'.format(repr(auction_info)))
             auction_doc = self.prepare_auction_data(auction_info)
             if not auction_doc:
                 continue
