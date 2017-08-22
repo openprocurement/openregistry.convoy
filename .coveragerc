@@ -1,0 +1,11 @@
+[run]
+source = openregistry.convoy
+
+[report]
+omit =
+    openregistry.convoy/__init__.py
+    openregistry.convoy/openregistry/__init__py
+    openregistry.convoy/openregistry/convoy/__init__.py
+    *tests*
+    *.env*
+show_missing = True
