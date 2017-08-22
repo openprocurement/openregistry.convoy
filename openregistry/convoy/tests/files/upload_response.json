@@ -1,0 +1,9 @@
+{
+  "get_url": "http://docs-sandbox.openprocurement.org/get/a6754e7c32a542fcb9a56ca598064be3?Expires=1469462161&KeyID=d06070b8&Signature=mG1VowjmkivEAhiSrCYbcaKgbsiO8nOWau4my%252BVZHZsQrSZZXG3wPG6zVkUuTc2TLKJhd9wP%2F3S3jcZ5Jd7eBA%253D%253D",
+  "data": {
+    "url": "http://docs-sandbox.openprocurement.org/get/a6754e7c32a542fcb9a56ca598064be3?KeyID=d06070b8&Signature=qwiE1zcGeR7bPSTawNedZ0yUrx0OeW4mL1HbctBRHDYSxGI9Zom8gR0JUZFwmOlpxkpps0AJhnJ7j%2FgNFqQeBA%253D%253D",
+    "format": "text/plain",
+    "hash": "md5:9a0364b9e99bb480dd25e1f0284c8555",
+    "title": "file.txt"
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "data": {
+    "status": "active",
+    "relatedLot": "bf4f85a579d149e781d3d4b4d73fc29f",
+    "description": "i-1e63b160: Легкові автомобілі",
+    "classification": {
+      "scheme": "CPV",
+      "description": "Легкові автомобілі",
+      "id": "34110000-1"
+    },
+    "title": "Виламуватися облудність стругнути.",
+    "assetID": "UA-2017-08-17-000035",
+    "assetType": "basic",
+    "description_en": "i-cbf739d2: Cars",
+    "id": "580d38b347134ac6b0ee3f04e34b9770",
+    "date": "2017-08-17T16:27:11.186558+03:00",
+    "unit": {
+      "code": "H87",
+      "name": "штуки"
+    },
+    "additionalClassifications": [
+      {
+        "scheme": "CPVS",
+        "id": "PA01-7",
+        "description": "Найм"
+      }
+    ],
+    "documents":[
+      {
+        "hash": "md5:00000000000000000000000000000000",
+        "description": "document description",
+        "format": "application/pdf",
+        "url": "http://public.docs-sandbox.ea.openprocurement.org/get/0f4fa89c2d474b758b69c4519deb4669?KeyID=df79319d&Signature=NFKTdJ0NEPpLGoHhQLj5BZk%252BcMcqYYNmDSaC728CSeFbAJVf4%252B1r1DSbxnVNomhP%2FCJLp4AScSrdoKcwlI1QCg%253D%253D",
+        "title": "Notice.pdf",
+        "documentOf": "asset",
+        "relatedItem": "bf4f85a579d149e781d3d4b4d73fc29f",
+        "datePublished": "2017-04-07T15:31:21.147289+03:00",
+        "documentType": "technicalSpecifications",
+        "dateModified": "2017-04-07T15:31:21.147318+03:00",
+        "id": "5b056653d3ba44c3a31e42b36c211250"
+      }   
+    ],
+    "value": {
+      "currency": "UAH",
+      "amount": 1023538.07,
+      "valueAddedTaxIncluded": true
+    },
+    "address": {
+      "postalCode": "02232",
+      "countryName": "Україна",
+      "streetAddress": "проспект Володимира Маяковського, 93В",
+      "region": "місто Київ",
+      "locality": "Київ"
+    },
+    "owner": "test.quintagrpoup.com",
+    "description_ru": "i-5a58c5f6: Легковые автомобили",
+    "dateModified": "2017-08-17T16:27:11.186558+03:00",
+    "assetCustodian": {
+      "contactPoint": {
+        "telephone": "5228755",
+        "url": "http://www.pcenter.org.ua",
+        "faxNumber": "5228745",
+        "name": "Пуніна Ірина Пилипівна",
+        "email": "pcenter_ekonomist@ukr.net"
+      },
+      "identifier": {
+        "scheme": "UA-EDR",
+        "id": "22964365",
+        "legalName": "Перинатальний центр м.Києва"
+      },
+      "name": "Перинатальний центр м.Києва",
+      "address": {
+        "postalCode": "03150",
+        "countryName": "Україна",
+        "streetAddress": "вулиця Івана Федорова, 9, 5А",
+        "region": "місто Київ",
+        "locality": "Київ"
+      }
+    },
+    "quantity": 3
+  }
+}
