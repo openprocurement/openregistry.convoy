@@ -136,8 +136,8 @@ class Convoy(object):
             self.api_client.create_thin_document(api_auction_doc, document)
             LOGGER.info(
                 'Added document with hash {} to auction id: {} item id:'
-                ' {}'.format(document['hash'], auction_doc['id'],
-                             document['relatedItem'])
+                ' {} in CDB'.format(document['hash'], auction_doc['id'],
+                                    document['relatedItem'])
             )
 
         lot['data']['status'] = 'active.auction'
