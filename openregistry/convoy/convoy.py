@@ -5,21 +5,15 @@ monkey.patch_all()
 import logging
 import logging.config
 import os
-import time
 import argparse
 from yaml import load
-from uuid import uuid4
 from openprocurement_client.client import TendersClient as APIClient
-from openregistry.convoy.utils import continuous_changes_feed
+from openregistry.convoy.utils import continuous_changes_feed, push_filter_doc
 from openprocurement_client.document_service_client import (
     DocumentServiceClient as DSClient
 )
 from openprocurement_client.registry_client import LotsClient, AssetsClient
-from openprocurement_client.exceptions import (
-    InvalidResponse,
-    Forbidden,
-    RequestFailed
-)
+
 from gevent.queue import Queue, Empty
 from gevent import spawn, sleep
 from couchdb import Server, Session
@@ -55,6 +49,7 @@ class Convoy(object):
                     **self.convoy_conf['couchdb']),
                 session=Session(retry_delays=range(10)))[
                     self.convoy_conf['couchdb']['db']]
+        push_filter_doc(self.db)
 
     def _create_items_from_assets(self, assets_ids):
         items = []
