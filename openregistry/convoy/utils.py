@@ -42,7 +42,7 @@ def continuous_changes_feed(db, timeout=10, limit=100,
             for row in data['results']:
                 item = {
                     'id': row['doc']['_id'],
-                    'lotID': row['doc']['lotID']
+                    'lotID': row['doc']['merchandisingObject']
                 }
                 yield item
         else:

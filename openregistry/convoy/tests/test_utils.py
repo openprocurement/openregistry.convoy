@@ -51,7 +51,7 @@ class TestUtilsSuite(unittest.TestCase):
         lot_id = uuid4().hex
         db.changes.side_effect = [
             {'last_seq': 1, 'results': [
-                {'doc': {'_id': auction_id, 'lotID': lot_id}}]},
+                {'doc': {'_id': auction_id, 'merchandisingObject': lot_id}}]},
             {'last_seq': 2, 'results': []}
         ]
         with mock.patch(
