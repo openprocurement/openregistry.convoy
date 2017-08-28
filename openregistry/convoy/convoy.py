@@ -93,7 +93,7 @@ class Convoy(object):
         return items, documents
 
     def prepare_auction_data(self, auction_doc):
-        lot_id = auction_doc.get('lotID')
+        lot_id = auction_doc.get('merchandisingObject')
 
         # Get lot
         lot = self.lots_client.get_lot(lot_id)

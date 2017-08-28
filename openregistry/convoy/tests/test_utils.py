@@ -61,7 +61,7 @@ class TestUtilsSuite(unittest.TestCase):
             for r in continuous_changes_feed(db, timeout=0.1):
                 results.append(r)
         self.assertEqual(len(results), 1)
-        self.assertEqual(results[0], {'lotID': lot_id, 'id': auction_id})
+        self.assertEqual(results[0], {'merchandisingObject': lot_id, 'id': auction_id})
 
 
 def suite():

@@ -132,19 +132,19 @@ class TestConvoySuite(unittest.TestCase):
     def test_prepare_auction_data(self):
         a_doc = {
             'id': uuid4().hex,  # this is auction id
-            'lotID': uuid4().hex
+            'merchandisingObject': uuid4().hex
         }
         api_auction_doc = {
             'data': {
                 'id': uuid4().hex,
                 'status': 'pending.verifcation',
-                'lotID': a_doc['lotID']
+                'merchandisingObject': a_doc['merchandisingObject']
             }
         }
         lc = mock.MagicMock()
         lc.get_lot.return_value = munchify({
             'data': {
-                'id': a_doc['lotID'],
+                'id': a_doc['merchandisingObject'],
                 'status': u'verification',
                 'assets': ['580d38b347134ac6b0ee3f04e34b9770']
             }
@@ -156,7 +156,7 @@ class TestConvoySuite(unittest.TestCase):
         convoy.lots_client = lc
         auction_doc = convoy.prepare_auction_data(a_doc)
         self.assertEqual(None, auction_doc)
-        convoy.lots_client.get_lot.assert_called_with(a_doc['lotID'])
+        convoy.lots_client.get_lot.assert_called_with(a_doc['merchandisingObject'])
 
         # Preparing for test with valid status and documents
         with open('{}/asset.json'.format(self.test_files_path), 'r') as af:
@@ -179,7 +179,7 @@ class TestConvoySuite(unittest.TestCase):
         convoy.assets_client = mock_rc
         lc.get_lot.return_value = munchify({
             'data': {
-                'id': a_doc['lotID'],
+                'id': a_doc['merchandisingObject'],
                 'status': u'active.salable',
                 'assets': ['580d38b347134ac6b0ee3f04e34b9770']
             }
@@ -189,10 +189,10 @@ class TestConvoySuite(unittest.TestCase):
             items, documents))
         auction_doc = convoy.prepare_auction_data(a_doc)
         self.assertEqual(convoy.documents_transfer_queue.qsize(), 1)
-        convoy.lots_client.get_lot.assert_called_with(a_doc['lotID'])
+        convoy.lots_client.get_lot.assert_called_with(a_doc['merchandisingObject'])
         convoy.lots_client.patch_resource_item.assert_called_with({'data': {
             'status': 'active.auction',
-            'id': a_doc['lotID'],
+            'id': a_doc['merchandisingObject'],
             'assets': ['580d38b347134ac6b0ee3f04e34b9770']
         }})
         convoy._create_items_from_assets.assert_called_with(asset_ids)
@@ -246,8 +246,8 @@ class TestConvoySuite(unittest.TestCase):
     @mock.patch('openregistry.convoy.convoy.spawn')
     @mock.patch('openregistry.convoy.convoy.continuous_changes_feed')
     def test_run(self, mock_changes, mock_spawn):
-        mock_changes.return_value = [{'id': uuid4().hex, 'lotID': uuid4().hex},
-                                     {'id': uuid4().hex, 'lotID': uuid4().hex}]
+        mock_changes.return_value = [{'id': uuid4().hex, 'merchandisingObject': uuid4().hex},
+                                     {'id': uuid4().hex, 'merchandisingObject': uuid4().hex}]
         convoy = Convoy(self.config)
         convoy.prepare_auction_data = mock.MagicMock(side_effect=[
             None, {'data': {'id': mock_changes.return_value[1]['id'],
