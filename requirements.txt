@@ -3,7 +3,7 @@ gevent
 pyyaml
 couchdb
 couchapp
-git+https://github.com/VDigitall/openprocurement.client.python.git@a410548008763407_patch_resource_item_method
+git+https://github.com/openprocurement/openprocurement.client.python.git@registry
 webtest
 python-coveralls
 nose

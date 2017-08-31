@@ -7,12 +7,11 @@ import logging.config
 import os
 import argparse
 from yaml import load
-from openprocurement_client.client import TendersClient as APIClient
+from openprocurement_client.clients import APIResourceClient as APIClient
+from openprocurement_client.constants import DOCUMENTS
+from openprocurement_client.resources.assets import AssetsClient
+from openprocurement_client.resources.lots import LotsClient
 from openregistry.convoy.utils import continuous_changes_feed, push_filter_doc
-from openprocurement_client.document_service_client import (
-    DocumentServiceClient as DSClient
-)
-from openprocurement_client.registry_client import LotsClient, AssetsClient
 
 from gevent.queue import Queue, Empty
 from gevent import spawn, sleep
@@ -32,7 +31,6 @@ class Convoy(object):
                                                         10)
         self.documents_transfer_queue = Queue()
         self.timeout = self.convoy_conf.get('timeout', 10)
-        self.ds_client = DSClient(**self.convoy_conf['cdb_ds'])
         self.api_client = APIClient(**self.convoy_conf['cdb'])
         self.lots_client = LotsClient(**self.convoy_conf['lots_db'])
         self.assets_client = AssetsClient(**self.convoy_conf['assets_db'])
@@ -76,8 +74,10 @@ class Convoy(object):
                 item_document = {
                     k: doc[k] for k in document_keys if k in doc
                 }
-                registered_doc = self.ds_client.register_document_upload(
-                    doc['hash'])
+                registered_doc = \
+                    self.api_client.ds_client.register_document_upload(
+                        doc['hash']
+                    )
                 LOGGER.info('Registered document upload for item {} with hash'
                             ' {}'.format(asset_id, doc['hash']))
                 transfer_item = {
@@ -108,10 +108,10 @@ class Convoy(object):
             return
 
         # Lock lot
-        lot.data['status'] = 'active.awaiting'
+        lot_patch_data = {'data': {'status': 'active.awaiting'}}
         LOGGER.info('Lock lot {}'.format(lot.data.id),
                     extra={'MESSAGE_ID': 'lock_lot'})
-        self.lots_client.patch_resource_item(lot)
+        self.lots_client.patch_resource_item(lot.data.id, lot_patch_data)
 
         # Convert assets to items
         items, documents = self._create_items_from_assets(lot.data.assets)
@@ -121,30 +121,36 @@ class Convoy(object):
         api_auction_doc.data['items'] = items
 
         # Add items to CDB
-        self.api_client.patch_resource_item(api_auction_doc)
+        auction_patch_data = {'data': {'items': items}}
+        self.api_client.patch_resource_item(
+            api_auction_doc.data.id, auction_patch_data
+        )
         LOGGER.info('Added {} items to auction {}'.format(len(items),
                                                           auction_doc['id']))
 
         # Add documents to CDB
         for document in documents:
-            self.api_client.create_thin_document(api_auction_doc, document)
+            self.api_client.create_resource_item_subitem(
+                api_auction_doc.data.id, {'data': document}, DOCUMENTS
+            )
             LOGGER.info(
                 'Added document with hash {} to auction id: {} item id:'
-                ' {} in CDB'.format(document['hash'], auction_doc['id'],
+                ' {} in CDB'.format(document['hash'],
+                                    auction_doc['id'],
                                     document['relatedItem'])
             )
 
-        lot['data']['status'] = 'active.auction'
-        self.lots_client.patch_resource_item(lot)
+        lot_patch_data['data']['status'] = 'active.auction'
+        self.lots_client.patch_resource_item(lot['data']['id'], lot_patch_data)
         LOGGER.info('Switch lot {} to \'{}\''.format(
-            lot['data']['id'], lot['data']['status']))
+            lot['data']['id'], lot_patch_data['data']['status']))
         return api_auction_doc
 
     def switch_auction_to_active_tendering(self, auction):
-        auction['data']['status'] = 'active.tendering'
-        self.api_client.patch_resource_item(auction)
+        patch_data = {'data': {'status': 'active.tendering'}}
+        self.api_client.patch_resource_item(auction['data']['id'], patch_data)
         LOGGER.info('Switch auction {} to status {}'.format(
-            auction['data']['id'], auction['data']['status']))
+            auction['data']['id'], patch_data['data']['status']))
 
     def file_bridge(self):
         while not self.stop_transmitting:
@@ -156,7 +162,9 @@ class Convoy(object):
                     LOGGER.debug('Received document file from asset DS')
                     # TODO: Fill headers valid data if needed
                     headers = {}
-                    self.ds_client.document_upload_not_register(file_, headers)
+                    self.api_client.ds_client.document_upload_not_register(
+                        file_, headers
+                    )
                     LOGGER.debug('Uploaded document file to auction DS')
                 except:
                     LOGGER.error('While receiving or uploading document '
