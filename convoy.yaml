@@ -7,26 +7,24 @@
     host: "127.0.0.1"
     port: "5984"
     db: "ea_auctions"
-  cdb_ds:
-    host_url: "http://docs-sandbox.openprocurement.org"
-    auth_ds: ["login", "password"]
   cdb:
     key: "api_key"
     host_url: "http://api-sandbox.openprocurement.org"
     api_version: "2.3"
     resource: "auctions"
     user_agent: "convoy"
+    ds_config:
+      host_url: "http://docs-sandbox.openprocurement.org"
+      auth_ds: ["login", "password"]
   lots_db:
     key: "lots_api_key"
     host_url: "https://lb.api-sandbox.registry.ea.openprocurement.net"
     api_version: "0.1"
-    resource: "lots"
     user_agent: "lots_convoy"
   assets_db:
     key: "api_key"
     host_url: "https://lb.api-sandbox.registry.ea.openprocurement.net"
     api_version: "0.1"
-    resource: "assets"
     user_agent: "assets_convoy"
   version: 1
 
