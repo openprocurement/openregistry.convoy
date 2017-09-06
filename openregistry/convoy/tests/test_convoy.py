@@ -104,9 +104,6 @@ class TestConvoySuite(unittest.TestCase):
         self.assertEqual(len(items), 1)
         self.assertEqual(len(documents), 1)
         for k in items_keys:
-            # Skip this key because hard code changing from CPVS to CAV
-            if k == 'classification':
-                continue
             self.assertEqual(asset_dict['data'].get(k), items[0].get(k))
         for k in documents_keys:
             self.assertEqual(documents[0].get(k),

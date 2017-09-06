@@ -64,8 +64,6 @@ class Convoy(object):
                 asset.data.id, asset.data.status))
             item = {k: asset.data[k] for k in keys if k in asset.data}
             item['description'] = asset.data.title
-            # TODO: Fix CAV <--> CPV
-            item['classification']['scheme'] = 'CAV'
             items.append(item)
             if 'documents' not in asset.data:
                 LOGGER.debug('Asset {} without documents'.format(asset_id))
