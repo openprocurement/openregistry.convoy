@@ -8,7 +8,7 @@ import mock
 import os
 from yaml import load
 from gevent.queue import Queue
-from munch import munchify
+from munch import munchify, Munch
 from couchdb import Server, Session, Database
 from openprocurement_client.resources.assets import AssetsClient
 from openprocurement_client.resources.lots import LotsClient
@@ -122,10 +122,10 @@ class TestConvoySuite(unittest.TestCase):
         self.assertEqual(convoy.documents_transfer_queue.qsize(), 0)
 
     def test_prepare_auction_data(self):
-        a_doc = {
+        a_doc = Munch({
             'id': uuid4().hex,  # this is auction id
             'merchandisingObject': uuid4().hex
-        }
+        })
         api_auction_doc = {
             'data': {
                 'id': a_doc['id'],
@@ -200,16 +200,14 @@ class TestConvoySuite(unittest.TestCase):
     def test_switch_auction_to_active_tendering(self):
         convoy = Convoy(self.config)
         convoy.api_client = mock.MagicMock()
-        auction = {
-            'data': {
-                'id': uuid4().hex,
-                'status': 'pending.verification'
-            }
-        }
+        auction = Munch({
+            'id': uuid4().hex,
+            'status': 'pending.verification'
+        })
         patched_auction = {'data': {'status': 'active.tendering'}}
         convoy.switch_auction_to_active_tendering(auction)
         convoy.api_client.patch_resource_item.assert_called_with(
-            auction['data']['id'], patched_auction
+            auction['id'], patched_auction
         )
 
     def test_file_bridge(self):
@@ -239,8 +237,8 @@ class TestConvoySuite(unittest.TestCase):
     @mock.patch('openregistry.convoy.convoy.continuous_changes_feed')
     def test_run(self, mock_changes, mock_spawn):
         mock_changes.return_value = [
-            {'id': uuid4().hex, 'merchandisingObject': uuid4().hex},
-            {'id': uuid4().hex, 'merchandisingObject': uuid4().hex}
+            munchify({'id': uuid4().hex, 'merchandisingObject': uuid4().hex}),
+            munchify({'id': uuid4().hex, 'merchandisingObject': uuid4().hex})
         ]
         convoy = Convoy(self.config)
         convoy.prepare_auction_data = mock.MagicMock(side_effect=[

@@ -2,6 +2,7 @@
 from logging import getLogger
 from pkg_resources import get_distribution
 from time import sleep
+from munch import Munch
 
 PKG = get_distribution(__package__)
 LOGGER = getLogger(PKG.project_name)
@@ -40,10 +41,10 @@ def continuous_changes_feed(db, timeout=10, limit=100,
         last_seq_id = data['last_seq']
         if len(data['results']) != 0:
             for row in data['results']:
-                item = {
+                item = Munch({
                     'id': row['doc']['_id'],
                     'merchandisingObject': row['doc']['merchandisingObject']
-                }
+                })
                 yield item
         else:
             sleep(timeout)

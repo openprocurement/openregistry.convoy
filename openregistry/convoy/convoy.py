@@ -8,6 +8,7 @@ import os
 import argparse
 from yaml import load
 from openprocurement_client.clients import APIResourceClient as APIClient
+from openprocurement_client.exceptions import ResourceNotFound
 from openprocurement_client.constants import DOCUMENTS
 from openprocurement_client.resources.assets import AssetsClient
 from openprocurement_client.resources.lots import LotsClient
@@ -58,70 +59,86 @@ class Convoy(object):
                 'unit', 'quantity', 'location', 'id']
         document_keys = ['hash', 'description', 'title', 'url', 'format',
                          'documentType']
-        for asset_id in assets_ids:
-            asset = self.assets_client.get_asset(asset_id)
+        for index, asset_id in enumerate(assets_ids):
+            asset = self.assets_client.get_asset(asset_id).data
             LOGGER.info('Received asset {} with status {}'.format(
-                asset.data.id, asset.data.status))
-            item = {k: asset.data[k] for k in keys if k in asset.data}
-            item['description'] = asset.data.title
+                asset.id, asset.status))
+            item = {k: asset[k] for k in keys if k in asset}
+            item['description'] = asset.title
             items.append(item)
-            if 'documents' not in asset.data:
+            if 'documents' not in asset:
                 LOGGER.debug('Asset {} without documents'.format(asset_id))
                 continue
-            for doc in asset.data.documents:
+            for doc in asset.documents:
                 item_document = {
                     k: doc[k] for k in document_keys if k in doc
                 }
-                registered_doc = \
-                    self.api_client.ds_client.register_document_upload(
-                        doc['hash']
-                    )
+                registered_doc = self.api_client.ds_client.register_document_upload(doc['hash'])
                 LOGGER.info('Registered document upload for item {} with hash'
                             ' {}'.format(asset_id, doc['hash']))
                 transfer_item = {
-                    'get_url': doc['url'],
-                    'upload_url': registered_doc.upload_url
+                    'get_url': doc.url,
+                    'upload_url': registered_doc['upload_url']
                 }
                 self.documents_transfer_queue.put(transfer_item)
-                item_document['url'] = registered_doc.data.url
+                item_document['url'] = registered_doc['data']['url']
                 item_document['documentOf'] = 'item'
-                item_document['relatedItem'] = asset.data.id
+                item_document['relatedItem'] = asset.id
                 documents.append(item_document)
 
         return items, documents
 
+    def invalidate_auction(self, auction_id):
+        self.api_client.patch_resource_item(
+            auction_id, {"data": {"status": "invalid"}}
+        )
+        LOGGER.info('Switch auction {} status to invalid'.format(auction_id))
+
     def prepare_auction_data(self, auction_doc):
-        lot_id = auction_doc.get('merchandisingObject')
+        lot_id = auction_doc.merchandisingObject
 
         # Get lot
-        lot = self.lots_client.get_lot(lot_id)
+        try:
+            lot = self.lots_client.get_lot(lot_id).data
+        except ResourceNotFound:
+            self.invalidate_auction(auction_doc.id)
+            return
+
         LOGGER.info('Received lot {} from CDB'.format(lot_id))
-        if lot.data.status != u'active.salable':
-            # lot['data']['status'] = 'active.salable'
+        if lot.status != u'active.salable':
+            # lot['status'] = 'active.salable'
             # self.lots_client.patch_resource_item(lot)
             LOGGER.warning(
                 'Lot status \'{}\' not equal \'active.salable\''.format(
-                    lot.data.status),
+                    lot.status),
                 extra={'MESSAGE_ID': 'invalid_lot_status'})
+            self.invalidate_auction(auction_doc.id)
             return
 
         # Lock lot
-        lot_patch_data = {'data': {'status': 'active.awaiting'}}
-        LOGGER.info('Lock lot {}'.format(lot.data.id),
+        auctions_list = lot.get('auctions', [])
+        auctions_list.append(auction_doc.id)
+        lot_patch_data = {'data': {'status': 'active.awaiting', 'auctions': auctions_list}}
+        self.lots_client.patch_resource_item(lot.id, lot_patch_data)
+        LOGGER.info('Lock lot {}'.format(lot.id),
                     extra={'MESSAGE_ID': 'lock_lot'})
-        self.lots_client.patch_resource_item(lot.data.id, lot_patch_data)
 
         # Convert assets to items
-        items, documents = self._create_items_from_assets(lot.data.assets)
+        items, documents = self._create_items_from_assets(lot.assets)
 
-        api_auction_doc = self.api_client.get_resource_item(auction_doc['id'])
+        if not items:
+            self.lots_client.patch_resource_item(lot.id, {'data': {'status': 'active.salable'}})
+            LOGGER.info('Switch lot {} status to active.salable'.format(lot.id))
+            self.invalidate_auction(auction_doc.id)
+            return
+
+        api_auction_doc = self.api_client.get_resource_item(auction_doc['id']).data
         LOGGER.info('Received auction {} from CDB'.format(auction_doc['id']))
-        api_auction_doc.data['items'] = items
 
         # Add items to CDB
         auction_patch_data = {'data': {'items': items}}
         self.api_client.patch_resource_item(
-            api_auction_doc.data.id, auction_patch_data
+            api_auction_doc.id, auction_patch_data
         )
         LOGGER.info('Added {} items to auction {}'.format(len(items),
                                                           auction_doc['id']))
@@ -129,7 +146,7 @@ class Convoy(object):
         # Add documents to CDB
         for document in documents:
             self.api_client.create_resource_item_subitem(
-                api_auction_doc.data.id, {'data': document}, DOCUMENTS
+                api_auction_doc.id, {'data': document}, DOCUMENTS
             )
             LOGGER.info(
                 'Added document with hash {} to auction id: {} item id:'
@@ -138,17 +155,14 @@ class Convoy(object):
                                     document['relatedItem'])
             )
 
-        lot_patch_data['data']['status'] = 'active.auction'
-        self.lots_client.patch_resource_item(lot['data']['id'], lot_patch_data)
-        LOGGER.info('Switch lot {} to \'{}\''.format(
-            lot['data']['id'], lot_patch_data['data']['status']))
+        self.lots_client.patch_resource_item(lot['id'], {'data': {'status': 'active.auction'}})
+        LOGGER.info('Switch lot {} to \'active.auction\''.format(lot['id']))
         return api_auction_doc
 
     def switch_auction_to_active_tendering(self, auction):
-        patch_data = {'data': {'status': 'active.tendering'}}
-        self.api_client.patch_resource_item(auction['data']['id'], patch_data)
-        LOGGER.info('Switch auction {} to status {}'.format(
-            auction['data']['id'], patch_data['data']['status']))
+        new_status = 'active.tendering'
+        self.api_client.patch_resource_item(auction['id'], {'data': {'status': new_status}})
+        LOGGER.info('Switch auction {} to status {}'.format(auction['id'], new_status))
 
     def file_bridge(self):
         while not self.stop_transmitting:
