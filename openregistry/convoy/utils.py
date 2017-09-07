@@ -47,6 +47,7 @@ def continuous_changes_feed(db, timeout=10, limit=100,
             for row in data['results']:
                 item = Munch({
                     'id': row['doc']['_id'],
+                    'status': row['doc']['status'],
                     'merchandisingObject': row['doc']['merchandisingObject']
                 })
                 yield item
