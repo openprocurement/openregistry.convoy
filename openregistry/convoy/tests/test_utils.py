@@ -7,7 +7,7 @@ from openregistry.convoy.utils import (
     push_filter_doc,
     continuous_changes_feed,
     FILTER_DOC_ID,
-    FILTER_PENDING_VERIFICATION_DOC
+    FILTER_CONVOY_FEED_DOC
 )
 
 
@@ -33,7 +33,7 @@ class TestUtilsSuite(unittest.TestCase):
         filter_doc = {
             '_id': FILTER_DOC_ID,
             'filters': {
-                'pending_verification': FILTER_PENDING_VERIFICATION_DOC
+                'convoy_feed': FILTER_CONVOY_FEED_DOC
             }
         }
         push_filter_doc(db)

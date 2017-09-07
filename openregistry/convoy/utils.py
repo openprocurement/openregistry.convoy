@@ -8,10 +8,16 @@ PKG = get_distribution(__package__)
 LOGGER = getLogger(PKG.project_name)
 
 FILTER_DOC_ID = '_design/auction_filters'
-FILTER_PENDING_VERIFICATION_DOC = """
+FILTER_CONVOY_FEED_DOC = """
 function(doc, req) {
-    if (doc.doc_type == 'Auction' && doc.status== 'pending.verification') {
-        return true;
+    if (doc.doc_type == 'Auction') {
+        if (doc.status == 'pending.verification') {
+            return true;
+        }
+        terminal_statuses = ['complete', 'cancelled', 'unsuccessful']
+        if (terminal_statuses.indexOf(doc.status) >= 0 and doc.merchandisingObject) {
+            return true;
+        }
     }
     return false;
 }
@@ -22,18 +28,18 @@ CONTINUOUS_CHANGES_FEED_FLAG = True  # Need for testing
 
 def push_filter_doc(db):
     filters_doc = db.get(FILTER_DOC_ID, {'_id': FILTER_DOC_ID, 'filters': {}})
-    if (filters_doc and filters_doc['filters'].get('pending_verification') !=
-            FILTER_PENDING_VERIFICATION_DOC):
-        filters_doc['filters']['pending_verification'] = \
-            FILTER_PENDING_VERIFICATION_DOC
+    if (filters_doc and filters_doc['filters'].get('convoy_feed') !=
+        FILTER_CONVOY_FEED_DOC):
+        filters_doc['filters']['convoy_feed'] = \
+            FILTER_CONVOY_FEED_DOC
         db.save(filters_doc)
-        LOGGER.info('Filter doc \'pending_verification\' saved.')
+        LOGGER.info('Filter doc \'convoy_feed\' saved.')
     else:
-        LOGGER.info('Filter doc \'pending_verification\' exist.')
+        LOGGER.info('Filter doc \'convoy_feed\' exist.')
 
 
 def continuous_changes_feed(db, timeout=10, limit=100,
-                            filter_doc='auction_filters/pending_verification'):
+                            filter_doc='auction_filters/convoy_feed'):
     last_seq_id = 0
     while CONTINUOUS_CHANGES_FEED_FLAG:
         data = db.changes(include_docs=True, since=last_seq_id, limit=limit,

@@ -121,7 +121,7 @@ class TestConvoySuite(unittest.TestCase):
         self.assertEqual(len(documents), 0)
         self.assertEqual(convoy.documents_transfer_queue.qsize(), 0)
 
-    def test_prepare_auction_data(self):
+    def test_prepare_auction(self):
         a_doc = Munch({
             'id': uuid4().hex,  # this is auction id
             'merchandisingObject': uuid4().hex
@@ -146,7 +146,7 @@ class TestConvoySuite(unittest.TestCase):
         convoy = Convoy(self.config)
         convoy.api_client = api_client
         convoy.lots_client = lc
-        auction_doc = convoy.prepare_auction_data(a_doc)
+        auction_doc = convoy.prepare_auction(a_doc)
         self.assertEqual(None, auction_doc)
         convoy.lots_client.get_lot.assert_called_with(
             a_doc['merchandisingObject'])
@@ -176,7 +176,7 @@ class TestConvoySuite(unittest.TestCase):
         items, documents = convoy._create_items_from_assets(asset_ids)
         convoy._create_items_from_assets = mock.MagicMock(return_value=(
             items, documents))
-        auction_doc = convoy.prepare_auction_data(a_doc)
+        auction_doc = convoy.prepare_auction(a_doc)
         self.assertEqual(convoy.documents_transfer_queue.qsize(), 1)
         convoy.lots_client.get_lot.assert_called_with(
             a_doc['merchandisingObject'])
@@ -189,26 +189,13 @@ class TestConvoySuite(unittest.TestCase):
             }
         )
         convoy._create_items_from_assets.assert_called_with(asset_ids)
-        patched_api_auction_doc = {'data': {'items': items}}
+        patched_api_auction_doc = {'data': {'status': 'active.tendering'}}
         convoy.api_client.get_resource_item.assert_called_with(a_doc['id'])
         convoy.api_client.patch_resource_item.assert_called_with(
             api_auction_doc['data']['id'],
             patched_api_auction_doc)
         convoy.api_client.create_resource_item_subitem.assert_called_with(
             a_doc['id'], {'data': documents[0]}, 'documents')
-
-    def test_switch_auction_to_active_tendering(self):
-        convoy = Convoy(self.config)
-        convoy.api_client = mock.MagicMock()
-        auction = Munch({
-            'id': uuid4().hex,
-            'status': 'pending.verification'
-        })
-        patched_auction = {'data': {'status': 'active.tendering'}}
-        convoy.switch_auction_to_active_tendering(auction)
-        convoy.api_client.patch_resource_item.assert_called_with(
-            auction['id'], patched_auction
-        )
 
     def test_file_bridge(self):
         convoy = Convoy(self.config)
@@ -237,14 +224,13 @@ class TestConvoySuite(unittest.TestCase):
     @mock.patch('openregistry.convoy.convoy.continuous_changes_feed')
     def test_run(self, mock_changes, mock_spawn):
         mock_changes.return_value = [
-            munchify({'id': uuid4().hex, 'merchandisingObject': uuid4().hex}),
-            munchify({'id': uuid4().hex, 'merchandisingObject': uuid4().hex})
+            munchify({'status': 'pending.verification', 'id': uuid4().hex, 'merchandisingObject': uuid4().hex}),
+            munchify({'status': 'pending.verification', 'id': uuid4().hex, 'merchandisingObject': uuid4().hex})
         ]
         convoy = Convoy(self.config)
-        convoy.prepare_auction_data = mock.MagicMock(side_effect=[
+        convoy.prepare_auction = mock.MagicMock(side_effect=[
             None, {'data': {'id': mock_changes.return_value[1]['id'],
                             'status': 'pending.verification'}}])
-        convoy.switch_auction_to_active_tendering = mock.MagicMock()
         convoy.run()
         auction_to_switch = {
             'data': {
@@ -253,9 +239,7 @@ class TestConvoySuite(unittest.TestCase):
             }
         }
         mock_spawn.assert_called_with(convoy.file_bridge)
-        self.assertEqual(convoy.prepare_auction_data.call_count, 2)
-        convoy.switch_auction_to_active_tendering.assert_called_once_with(
-            auction_to_switch)
+        self.assertEqual(convoy.prepare_auction.call_count, 2)
 
     @mock.patch('openregistry.convoy.convoy.argparse.ArgumentParser',
                 MockedArgumentParser)

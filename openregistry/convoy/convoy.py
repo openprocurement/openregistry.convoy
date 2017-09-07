@@ -94,7 +94,9 @@ class Convoy(object):
         )
         LOGGER.info('Switch auction {} status to invalid'.format(auction_id))
 
-    def prepare_auction_data(self, auction_doc):
+    def prepare_auction(self, auction_doc):
+        LOGGER.info('Prepare auction {}'.format(auction_doc.id))
+
         lot_id = auction_doc.merchandisingObject
 
         # Get lot
@@ -155,14 +157,32 @@ class Convoy(object):
                                     document['relatedItem'])
             )
 
+        # Switch lot
         self.lots_client.patch_resource_item(lot['id'], {'data': {'status': 'active.auction'}})
-        LOGGER.info('Switch lot {} to \'active.auction\''.format(lot['id']))
-        return api_auction_doc
+        LOGGER.info('Switch lot {} to (active.auction) status'.format(lot['id']))
 
-    def switch_auction_to_active_tendering(self, auction):
-        new_status = 'active.tendering'
-        self.api_client.patch_resource_item(auction['id'], {'data': {'status': new_status}})
-        LOGGER.info('Switch auction {} to status {}'.format(auction['id'], new_status))
+        # Switch auction
+        self.api_client.patch_resource_item(auction_doc['id'], {'data': {'status': 'active.tendering'}})
+        LOGGER.info('Switch auction {} to (active.tendering) status'.format(auction_doc['id']))
+
+    def report_results(self, auction_doc):
+        LOGGER.info('Report auction results {}'.format(auction_doc.id))
+
+        lot_id = auction_doc.merchandisingObject
+
+        # Get lot
+        lot = self.lots_client.get_lot(lot_id).data
+
+        LOGGER.info('Received lot {} from CDB'.format(lot_id))
+
+        if auction_doc.status == 'complete':
+            next_lot_status = 'sold'
+        else:
+            next_lot_status = 'active.salable'
+
+        # Report results
+        self.lots_client.patch_resource_item(lot['id'], {'data': {'status': next_lot_status}})
+        LOGGER.info('Switch lot {} to ({}) status'.format(lot['id'], next_lot_status))
 
     def file_bridge(self):
         while not self.stop_transmitting:
@@ -192,10 +212,10 @@ class Convoy(object):
         sleep(1)
         for auction_info in continuous_changes_feed(self.db):
             LOGGER.info('Received auction {}'.format(repr(auction_info)))
-            auction_doc = self.prepare_auction_data(auction_info)
-            if not auction_doc:
-                continue
-            self.switch_auction_to_active_tendering(auction_doc)
+            if auction_info['status'] == 'pending.verification':
+                self.prepare_auction(auction_info)
+            else:
+                self.report_results(auction_info)
 
 
 def main():
