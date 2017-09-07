@@ -13,11 +13,9 @@ function(doc, req) {
     if (doc.doc_type == 'Auction') {
         if (doc.status == 'pending.verification') {
             return true;
-        }
-        terminal_statuses = ['complete', 'cancelled', 'unsuccessful']
-        if (terminal_statuses.indexOf(doc.status) >= 0 and doc.merchandisingObject) {
+        } else if (['complete', 'cancelled', 'unsuccessful'].indexOf(doc.status) >= 0 && doc.merchandisingObject) {
             return true;
-        }
+        };
     }
     return false;
 }
