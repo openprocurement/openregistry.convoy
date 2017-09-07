@@ -174,11 +174,11 @@ class Convoy(object):
         try:
             lot = self.lots_client.get_lot(lot_id).data
         except ResourceNotFound:
-            LOGGER.warning('Lot {} not found when report auction {} results'.format(lot_id, auction_doc.doc_id))
+            LOGGER.warning('Lot {} not found when report auction {} results'.format(lot_id, auction_doc.id))
             return
 
         if lot.status != 'active.auction' and lot.auctions[-1] == auction_doc.id:
-            LOGGER.info('Auction {} results already reported to lot {}'.format(auction_doc.doc_id, lot_id))
+            LOGGER.info('Auction {} results already reported to lot {}'.format(auction_doc.id, lot_id))
             return
 
         LOGGER.info('Received lot {} from CDB'.format(lot_id))
