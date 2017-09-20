@@ -38,7 +38,7 @@
         "documentType": "technicalSpecifications",
         "dateModified": "2017-04-07T15:31:21.147318+03:00",
         "id": "5b056653d3ba44c3a31e42b36c211250"
-      }   
+      }
     ],
     "value": {
       "currency": "UAH",
@@ -55,6 +55,51 @@
     "owner": "test.quintagrpoup.com",
     "description_ru": "i-5a58c5f6: Легковые автомобили",
     "dateModified": "2017-08-17T16:27:11.186558+03:00",
+    "items": [
+      {
+        "description": "htfthdfh",
+        "classification": {
+          "scheme": "CPV",
+          "description": "Замша",
+          "id": "19110000-0"
+        },
+        "additionalClassifications": [
+          {
+            "scheme": "CPVS",
+            "id": "PA01-7",
+            "description": "Оренда"
+          }
+        ],
+        "address": {
+          "postalCode": "02217",
+          "countryName": "Україна",
+          "streetAddress": "Закревського 39, 40",
+          "region": "Київська",
+          "locality": "Київ"
+        },
+        "id": "a72cd090ec2317df52b0679053520de0",
+        "unit": {
+          "code": "MTK",
+          "name": "метри квадратні"
+        },
+        "quantity": 5,
+        "documents":[
+          {
+            "hash": "md5:00000000000000000000000000000000",
+            "description": "document description",
+            "format": "application/pdf",
+            "url": "http://public.docs-sandbox.ea.openprocurement.org/get/0f4fa89c2d474b758b69c4519deb4669?KeyID=df79319d&Signature=NFKTdJ0NEPpLGoHhQLj5BZk%252BcMcqYYNmDSaC728CSeFbAJVf4%252B1r1DSbxnVNomhP%2FCJLp4AScSrdoKcwlI1QCg%253D%253D",
+            "title": "Notice.pdf",
+            "documentOf": "asset",
+            "relatedItem": "bf4f85a579d149e781d3d4b4d73fc29f",
+            "datePublished": "2017-04-07T15:31:21.147289+03:00",
+            "documentType": "technicalSpecifications",
+            "dateModified": "2017-04-07T15:31:21.147318+03:00",
+            "id": "5b056653d3ba44c3a31e42b36c211250"
+          }
+        ]
+      }
+    ],
     "assetCustodian": {
       "contactPoint": {
         "telephone": "5228755",
