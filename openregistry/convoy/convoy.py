@@ -90,19 +90,17 @@ class Convoy(object):
             if asset.get('items', False):
                 # add item's from complex asset
                 items = [item for item in asset.get('items')]
-
-                for item in items:
-                    pass
             item = {k: asset[k] for k in self.keys if k in asset}
             item['description'] = asset.title
             items.append(item)
 
-            # documents from items
+            # documents from asset and from items
             if 'documents' not in asset:
                 LOGGER.debug('Asset {} without documents'.format(asset_id))
                 continue
-            documents = self._get_documents(asset)
+            documents = self._get_documents(asset)  # from asset
 
+            # from item
             if asset.get('items', False):
                 for item in asset.get('items'):
                     for doc in self._get_documents(item):
