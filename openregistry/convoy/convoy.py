@@ -87,7 +87,7 @@ class Convoy(object):
             LOGGER.info('Received asset {} with status {}'.format(
                 asset.id, asset.status))
             # Check items in asset
-            if asset.get('items', False):
+            if 'items' in asset.keys():
                 # add item's from complex asset
                 items = [item for item in asset.get('items')]
             item = {k: asset[k] for k in self.keys if k in asset}
