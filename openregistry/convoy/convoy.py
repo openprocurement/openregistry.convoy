@@ -101,7 +101,7 @@ class Convoy(object):
             documents = self._get_documents(asset)  # from asset
 
             # from item
-            if 'items' in assets.keys():
+            if 'items' in asset.keys():
                 for item in asset.get('items'):
                     for doc in self._get_documents(item):
                         documents.append(doc)
