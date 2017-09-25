@@ -86,25 +86,23 @@ class Convoy(object):
             asset = self.assets_client.get_asset(asset_id).data
             LOGGER.info('Received asset {} with status {}'.format(
                 asset.id, asset.status))
-            # Check items in asset
-            if 'items' in asset.keys():
-                # add item's from complex asset
-                items = [item for item in asset.get('items')]
+            
+            # Convert asset to item
             item = {k: asset[k] for k in self.keys if k in asset}
             item['description'] = asset.title
             items.append(item)
+            
+            # Get items and items documents from complex asset
+            for item in asset.get('items', []):
+                items.append(item)
+                for doc in self._get_documents(item):
+                    documents.append(doc)
 
-            # documents from asset and from items
+            # Get documents from asset
             if 'documents' not in asset:
                 LOGGER.debug('Asset {} without documents'.format(asset_id))
                 continue
             documents = self._get_documents(asset)  # from asset
-
-            # from item
-            if 'items' in asset.keys():
-                for item in asset.get('items'):
-                    for doc in self._get_documents(item):
-                        documents.append(doc)
 
         return items, documents
 
