@@ -93,7 +93,7 @@ class Convoy(object):
             items.append(item)
             
             # Get documents from asset
-            for doc in self._get_documents(asset)
+            for doc in self._get_documents(asset):
                 documents.append(doc)
             
             # Get items and items documents from complex asset
