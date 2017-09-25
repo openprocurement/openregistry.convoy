@@ -95,14 +95,14 @@ class TestConvoySuite(unittest.TestCase):
         convoy.assets_client = mock_rc
         convoy.api_client = mock_rc
         items, documents = convoy._create_items_from_assets(asset_ids)
-        self.assertEqual(convoy.documents_transfer_queue.qsize(), 1)
+        self.assertEqual(convoy.documents_transfer_queue.qsize(), 2)
         transfer_item = convoy.documents_transfer_queue.get()
         self.assertEqual(transfer_item['get_url'],
                          document_dict['data']['url'])
         self.assertNotEqual(transfer_item['get_url'],
                             transfer_item['upload_url'])
-        self.assertEqual(len(items), 1)
-        self.assertEqual(len(documents), 1)
+        self.assertEqual(len(items), 2)
+        self.assertEqual(len(documents), 2)
         for k in items_keys:
             self.assertEqual(asset_dict['data'].get(k), items[0].get(k))
         for k in documents_keys:
@@ -117,9 +117,9 @@ class TestConvoySuite(unittest.TestCase):
         del asset_dict['data']['documents']
         mock_rc.get_asset.return_value = munchify(asset_dict)
         items, documents = convoy._create_items_from_assets(asset_ids)
-        self.assertEqual(len(items), 1)
+        self.assertEqual(len(items), 2)
         self.assertEqual(len(documents), 0)
-        self.assertEqual(convoy.documents_transfer_queue.qsize(), 0)
+        self.assertEqual(convoy.documents_transfer_queue.qsize(), 1)
 
     def test_prepare_auction(self):
         a_doc = Munch({
@@ -177,7 +177,7 @@ class TestConvoySuite(unittest.TestCase):
         convoy._create_items_from_assets = mock.MagicMock(return_value=(
             items, documents))
         auction_doc = convoy.prepare_auction(a_doc)
-        self.assertEqual(convoy.documents_transfer_queue.qsize(), 1)
+        self.assertEqual(convoy.documents_transfer_queue.qsize(), 2)
         convoy.lots_client.get_lot.assert_called_with(
             a_doc['merchandisingObject'])
         convoy.lots_client.patch_resource_item.assert_called_with(
@@ -195,7 +195,7 @@ class TestConvoySuite(unittest.TestCase):
             api_auction_doc['data']['id'],
             patched_api_auction_doc)
         convoy.api_client.create_resource_item_subitem.assert_called_with(
-            a_doc['id'], {'data': documents[0]}, 'documents')
+            a_doc['id'], {'data': documents[1]}, 'documents')
 
     def test_file_bridge(self):
         convoy = Convoy(self.config)

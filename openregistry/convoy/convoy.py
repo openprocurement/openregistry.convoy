@@ -22,8 +22,11 @@ LOGGER = logging.getLogger(__name__)
 
 
 class Convoy(object):
-    """ Convoy """
-
+    """
+        Convoy worker object.
+        Worker that get assets and transform them to item's, than
+        he patch lot and auction to specified statuses
+    """
     def __init__(self, convoy_conf):
         LOGGER.info('Init Convoy...')
         self.convoy_conf = convoy_conf
@@ -35,6 +38,10 @@ class Convoy(object):
         self.api_client = APIClient(**self.convoy_conf['cdb'])
         self.lots_client = LotsClient(**self.convoy_conf['lots_db'])
         self.assets_client = AssetsClient(**self.convoy_conf['assets_db'])
+        self.keys = ['classification', 'additionalClassifications', 'address',
+                'unit', 'quantity', 'location', 'id']
+        self.document_keys = ['hash', 'description', 'title', 'url', 'format',
+                         'documentType']
         user = self.convoy_conf['couchdb'].get('user', '')
         password = self.convoy_conf['couchdb'].get('password', '')
         if user and password:
@@ -52,39 +59,48 @@ class Convoy(object):
         push_filter_doc(self.db)
         LOGGER.info('Added filters doc to db.')
 
+    def _get_documents(self, item):
+        documents = []
+        for doc in item.get('documents', []):
+            item_document = {
+                k: doc[k] for k in self.document_keys if k in doc
+            }
+            registered_doc = self.api_client.ds_client.register_document_upload(doc['hash'])
+            LOGGER.info('Registered document upload for item {} with hash'
+                        ' {}'.format(item.id, doc['hash']))
+            transfer_item = {
+                'get_url': doc.url,
+                'upload_url': registered_doc['upload_url']
+            }
+            self.documents_transfer_queue.put(transfer_item)
+            item_document['url'] = registered_doc['data']['url']
+            item_document['documentOf'] = 'item'
+            item_document['relatedItem'] = item.id
+            documents.append(item_document)
+        return documents
+
     def _create_items_from_assets(self, assets_ids):
         items = []
         documents = []
-        keys = ['classification', 'additionalClassifications', 'address',
-                'unit', 'quantity', 'location', 'id']
-        document_keys = ['hash', 'description', 'title', 'url', 'format',
-                         'documentType']
         for index, asset_id in enumerate(assets_ids):
             asset = self.assets_client.get_asset(asset_id).data
             LOGGER.info('Received asset {} with status {}'.format(
                 asset.id, asset.status))
-            item = {k: asset[k] for k in keys if k in asset}
+            
+            # Convert asset to item
+            item = {k: asset[k] for k in self.keys if k in asset}
             item['description'] = asset.title
             items.append(item)
-            if 'documents' not in asset:
-                LOGGER.debug('Asset {} without documents'.format(asset_id))
-                continue
-            for doc in asset.documents:
-                item_document = {
-                    k: doc[k] for k in document_keys if k in doc
-                }
-                registered_doc = self.api_client.ds_client.register_document_upload(doc['hash'])
-                LOGGER.info('Registered document upload for item {} with hash'
-                            ' {}'.format(asset_id, doc['hash']))
-                transfer_item = {
-                    'get_url': doc.url,
-                    'upload_url': registered_doc['upload_url']
-                }
-                self.documents_transfer_queue.put(transfer_item)
-                item_document['url'] = registered_doc['data']['url']
-                item_document['documentOf'] = 'item'
-                item_document['relatedItem'] = asset.id
-                documents.append(item_document)
+            
+            # Get documents from asset
+            for doc in self._get_documents(asset):
+                documents.append(doc)
+            
+            # Get items and items documents from complex asset
+            for item in asset.get('items', []):
+                items.append(item)
+                for doc in self._get_documents(item):
+                    documents.append(doc)
 
         return items, documents
 

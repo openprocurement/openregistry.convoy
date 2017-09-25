@@ -51,7 +51,11 @@ class TestUtilsSuite(unittest.TestCase):
         lot_id = uuid4().hex
         db.changes.side_effect = [
             {'last_seq': 1, 'results': [
-                {'doc': {'_id': auction_id, 'merchandisingObject': lot_id}}]},
+                {'doc': {
+                         '_id': auction_id,
+                         'status': 'pending.verifcation',
+                         'merchandisingObject': lot_id}}
+            ]},
             {'last_seq': 2, 'results': []}
         ]
         with mock.patch(
@@ -61,7 +65,10 @@ class TestUtilsSuite(unittest.TestCase):
             for r in continuous_changes_feed(db, timeout=0.1):
                 results.append(r)
         self.assertEqual(len(results), 1)
-        self.assertEqual(results[0], {'merchandisingObject': lot_id, 'id': auction_id})
+        self.assertEqual(results[0], {'merchandisingObject': lot_id,
+                                      'id': auction_id,
+                                      'status': 'pending.verifcation'
+                                      })
 
 
 def suite():
