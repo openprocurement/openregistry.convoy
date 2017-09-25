@@ -61,7 +61,7 @@ class Convoy(object):
 
     def _get_documents(self, item):
         documents = []
-        for doc in item.documents:
+        for doc in item.get('documents', []):
             item_document = {
                 k: doc[k] for k in self.document_keys if k in doc
             }
@@ -93,7 +93,8 @@ class Convoy(object):
             items.append(item)
             
             # Get documents from asset
-            documents = self._get_documents(asset)  # from asset
+            for doc in self._get_documents(asset)
+                documents.append(doc)
             
             # Get items and items documents from complex asset
             for item in asset.get('items', []):
