@@ -104,7 +104,7 @@ class TestConvoySuite(unittest.TestCase):
         self.assertEqual(len(items), 2)
         self.assertEqual(len(documents), 2)
         for k in items_keys:
-            self.assertEqual(asset_dict['data'].get(k), items[1].get(k))
+            self.assertEqual(asset_dict['data'].get(k), items[0].get(k))
         for k in documents_keys:
             self.assertEqual(documents[0].get(k),
                              asset_dict['data']['documents'][0].get(k))
