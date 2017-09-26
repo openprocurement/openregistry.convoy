@@ -115,6 +115,7 @@ class TestConvoySuite(unittest.TestCase):
 
         # Test with asset without documents
         del asset_dict['data']['documents']
+        del asset_dict['data']['items'][0]['documents']
         mock_rc.get_asset.return_value = munchify(asset_dict)
         items, documents = convoy._create_items_from_assets(asset_ids)
         self.assertEqual(len(items), 2)
