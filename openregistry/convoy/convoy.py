@@ -45,17 +45,21 @@ class Convoy(object):
         user = self.convoy_conf['couchdb'].get('user', '')
         password = self.convoy_conf['couchdb'].get('password', '')
         if user and password:
-            self.db = Server(
+            server = Server(
                 "http://{user}:{password}@{host}:{port}".format(
                     **self.convoy_conf['couchdb']),
-                session=Session(retry_delays=range(10)))[
-                    self.convoy_conf['couchdb']['db']]
+                session=Session(retry_delays=range(10)))
+            self.db = server[self.convoy_conf['couchdb']['db']] if \
+                self.convoy_conf['couchdb']['db'] in server else \
+                server.create(self.convoy_conf['couchdb']['db'])
         else:
-            self.db = Server(
+            server = Server(
                 "http://{host}:{port}".format(
                     **self.convoy_conf['couchdb']),
-                session=Session(retry_delays=range(10)))[
-                    self.convoy_conf['couchdb']['db']]
+                session=Session(retry_delays=range(10)))
+            self.db = server[self.convoy_conf['couchdb']['db']] if \
+                self.convoy_conf['couchdb']['db'] in server else \
+                server.create(self.convoy_conf['couchdb']['db'])
         push_filter_doc(self.db)
         LOGGER.info('Added filters doc to db.')
 
@@ -86,16 +90,16 @@ class Convoy(object):
             asset = self.assets_client.get_asset(asset_id).data
             LOGGER.info('Received asset {} with status {}'.format(
                 asset.id, asset.status))
-            
+
             # Convert asset to item
             item = {k: asset[k] for k in self.keys if k in asset}
             item['description'] = asset.title
             items.append(item)
-            
+
             # Get documents from asset
             for doc in self._get_documents(asset):
                 documents.append(doc)
-            
+
             # Get items and items documents from complex asset
             for item in asset.get('items', []):
                 items.append(item)
