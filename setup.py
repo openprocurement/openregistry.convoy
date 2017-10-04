@@ -25,6 +25,9 @@ extras_requires = {
 entry_points = {
     'console_scripts': [
         'openregistry_convoy = openregistry.convoy.convoy:main'
+    ],
+    'openregistry.tests': [
+        'convoy = openregistry.convoy.tests.main:suite'
     ]
 }
 

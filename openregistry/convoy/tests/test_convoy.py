@@ -16,6 +16,10 @@ from openprocurement_client.clients import APIResourceClient
 from openregistry.convoy.convoy import Convoy, main as convoy_main
 from uuid import uuid4
 
+# Absolute path to file, dropping 'openregistry/convoy/tests' part
+# os.getcwd() is not suitable for run_test.py script
+ROOT = '/'.join(os.path.dirname(__file__).split('/')[:-3])
+
 
 class MockedArgumentParser(mock.MagicMock):
 
@@ -28,7 +32,7 @@ class MockedArgumentParser(mock.MagicMock):
         self.help = help
 
     def parse_args(self):
-        return munchify({'config': '{}/{}'.format(os.getcwd(),
+        return munchify({'config': '{}/{}'.format(ROOT,
                                                   '/convoy.yaml')})
 
 
@@ -38,7 +42,7 @@ class TestConvoySuite(unittest.TestCase):
     def setUp(self):
         self.test_files_path = '{}/{}'.format(os.path.dirname(__file__),
                                               'files/')
-        with open('{}/convoy.yaml'.format(os.getcwd())) as config_file_obj:
+        with open('{}/convoy.yaml'.format(ROOT)) as config_file_obj:
             self.config = load(config_file_obj.read())
         user = self.config['couchdb'].get('user', '')
         password = self.config['couchdb'].get('password', '')
@@ -247,7 +251,7 @@ class TestConvoySuite(unittest.TestCase):
     @mock.patch('openregistry.convoy.convoy.Convoy')
     def test__main(self, mock_convoy):
         convoy_main()
-        with open('{}/{}'.format(os.getcwd(), 'convoy.yaml'), 'r') as cf:
+        with open('{}/{}'.format(ROOT, 'convoy.yaml'), 'r') as cf:
             config_dict = load(cf.read())
         mock_convoy.assert_called_once_with(config_dict)
         self.assertEqual(mock_convoy().run.call_count, 1)
