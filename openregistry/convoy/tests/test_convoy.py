@@ -62,7 +62,8 @@ class TestConvoySuite(unittest.TestCase):
     def tearDown(self):
         del self.server[self.config['couchdb']['db']]
 
-    def test_init(self):
+    @mock.patch('requests.Response.raise_for_status')
+    def test_init(self, mock_raise):
         convoy = Convoy(self.config)
         self.assertEqual(convoy.stop_transmitting, False)
         self.assertEqual(convoy.transmitter_timeout,
@@ -75,7 +76,11 @@ class TestConvoySuite(unittest.TestCase):
         self.assertIsInstance(convoy.db, Database)
         self.assertEqual(convoy.db.name, self.config['couchdb']['db'])
 
-    def test__create_items_from_assets(self):
+    def fake_response(self):
+        return None
+
+    @mock.patch('requests.Response.raise_for_status')
+    def test__create_items_from_assets(self, mock_raise):
         items_keys = ['classification', 'additionalClassifications', 'address',
                       'unit', 'quantity', 'location', 'id']
         documents_keys = ['hash', 'description', 'title', 'format',
@@ -94,7 +99,6 @@ class TestConvoySuite(unittest.TestCase):
         mock_rc.ds_client.register_document_upload.return_value = \
             munchify(register_response_dict)
         asset_ids = ['580d38b347134ac6b0ee3f04e34b9770']
-
         convoy = Convoy(self.config)
         convoy.assets_client = mock_rc
         convoy.api_client = mock_rc
@@ -126,7 +130,8 @@ class TestConvoySuite(unittest.TestCase):
         self.assertEqual(len(documents), 0)
         self.assertEqual(convoy.documents_transfer_queue.qsize(), 1)
 
-    def test_prepare_auction(self):
+    @mock.patch('requests.Response.raise_for_status')
+    def test_prepare_auction(self, mock_raise):
         a_doc = Munch({
             'id': uuid4().hex,  # this is auction id
             'merchandisingObject': uuid4().hex
@@ -202,7 +207,8 @@ class TestConvoySuite(unittest.TestCase):
         convoy.api_client.create_resource_item_subitem.assert_called_with(
             a_doc['id'], {'data': documents[1]}, 'documents')
 
-    def test_file_bridge(self):
+    @mock.patch('requests.Response.raise_for_status')
+    def test_file_bridge(self, mock_raise):
         convoy = Convoy(self.config)
         for i in xrange(0, 2):
             convoy.documents_transfer_queue.put({
@@ -225,9 +231,10 @@ class TestConvoySuite(unittest.TestCase):
             convoy.api_client.ds_client.document_upload_not_register.
             call_count, 2)
 
+    @mock.patch('requests.Response.raise_for_status')
     @mock.patch('openregistry.convoy.convoy.spawn')
     @mock.patch('openregistry.convoy.convoy.continuous_changes_feed')
-    def test_run(self, mock_changes, mock_spawn):
+    def test_run(self, mock_changes, mock_spawn, mock_raise):
         mock_changes.return_value = [
             munchify({'status': 'pending.verification', 'id': uuid4().hex, 'merchandisingObject': uuid4().hex}),
             munchify({'status': 'pending.verification', 'id': uuid4().hex, 'merchandisingObject': uuid4().hex})
