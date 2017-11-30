@@ -158,12 +158,13 @@ class Convoy(object):
         LOGGER.info('Received auction {} from CDB'.format(auction_doc['id']))
 
         # Add items to CDB
-        auction_patch_data = {'data': {'items': items}}
+        auction_patch_data = {'data': {'items': items, 'dgfID': lot.lotIdentifier}}
         self.api_client.patch_resource_item(
             api_auction_doc.id, auction_patch_data
         )
-        LOGGER.info('Added {} items to auction {}'.format(len(items),
-                                                          auction_doc['id']))
+        LOGGER.info('Auction: {} was formed from lot: {} with {} items and identifier'.format(auction_doc['id'],
+                                                                                              lot.id,
+                                                                                              len(items)))
 
         # Add documents to CDB
         for document in documents:
