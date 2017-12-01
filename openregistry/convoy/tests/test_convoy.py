@@ -196,11 +196,13 @@ class TestConvoySuite(unittest.TestCase):
             'dgfID': u'Q81318b19827'
             }
         }
-        convoy.api_client.patch_resource_item(expected)
+        # convoy.api_client.patch_resource_item(expected)
 
-        convoy.prepare_auction(a_doc)
-        self.assertEqual(convoy.api_client.patch_resource_item.mock_calls[1][1][0],
-                         convoy.api_client.patch_resource_item.mock_calls[2][1][1])
+        # convoy.prepare_auction(a_doc)
+        lot = convoy._receive_lot(a_doc)
+        convoy._form_auction(lot, a_doc)
+        convoy.api_client.patch_resource_item.assert_called_with(a_doc['id'], expected)
+        convoy._activate_auction(lot, a_doc)
         self.assertEqual(convoy.documents_transfer_queue.qsize(), 2)
         convoy.lots_client.get_lot.assert_called_with(
             a_doc['merchandisingObject'])
