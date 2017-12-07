@@ -147,6 +147,7 @@ class TestConvoySuite(unittest.TestCase):
         lc.get_lot.return_value = munchify({
             'data': {
                 'id': a_doc['merchandisingObject'],
+                'lotIdentifier': u'Q81318b19827',
                 'status': u'verification',
                 'assets': ['580d38b347134ac6b0ee3f04e34b9770']
             }
@@ -179,6 +180,7 @@ class TestConvoySuite(unittest.TestCase):
         lc.get_lot.return_value = munchify({
             'data': {
                 'id': a_doc['merchandisingObject'],
+                'lotIdentifier': u'Q81318b19827',
                 'status': u'active.salable',
                 'assets': ['580d38b347134ac6b0ee3f04e34b9770']
             }
@@ -186,7 +188,21 @@ class TestConvoySuite(unittest.TestCase):
         items, documents = convoy._create_items_from_assets(asset_ids)
         convoy._create_items_from_assets = mock.MagicMock(return_value=(
             items, documents))
-        auction_doc = convoy.prepare_auction(a_doc)
+
+        # Needed to call mock function before prepare_auction, to
+        # check if parameted of this call and call from prepare_auction is equal
+        expected = {'data': {
+            'items': items,
+            'dgfID': u'Q81318b19827'
+            }
+        }
+        # convoy.api_client.patch_resource_item(expected)
+
+        # convoy.prepare_auction(a_doc)
+        lot = convoy._receive_lot(a_doc)
+        convoy._form_auction(lot, a_doc)
+        convoy.api_client.patch_resource_item.assert_called_with(a_doc['id'], expected)
+        convoy._activate_auction(lot, a_doc)
         self.assertEqual(convoy.documents_transfer_queue.qsize(), 2)
         convoy.lots_client.get_lot.assert_called_with(
             a_doc['merchandisingObject'])

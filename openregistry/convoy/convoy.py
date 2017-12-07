@@ -114,9 +114,7 @@ class Convoy(object):
         )
         LOGGER.info('Switch auction {} status to invalid'.format(auction_id))
 
-    def prepare_auction(self, auction_doc):
-        LOGGER.info('Prepare auction {}'.format(auction_doc.id))
-
+    def _receive_lot(self, auction_doc):
         lot_id = auction_doc.merchandisingObject
 
         # Get lot
@@ -144,7 +142,9 @@ class Convoy(object):
         self.lots_client.patch_resource_item(lot.id, lot_patch_data)
         LOGGER.info('Lock lot {}'.format(lot.id),
                     extra={'MESSAGE_ID': 'lock_lot'})
+        return lot
 
+    def _form_auction(self, lot, auction_doc):
         # Convert assets to items
         items, documents = self._create_items_from_assets(lot.assets)
 
@@ -152,18 +152,17 @@ class Convoy(object):
             self.lots_client.patch_resource_item(lot.id, {'data': {'status': 'active.salable'}})
             LOGGER.info('Switch lot {} status to active.salable'.format(lot.id))
             self.invalidate_auction(auction_doc.id)
-            return
+            return False
 
         api_auction_doc = self.api_client.get_resource_item(auction_doc['id']).data
         LOGGER.info('Received auction {} from CDB'.format(auction_doc['id']))
 
         # Add items to CDB
-        auction_patch_data = {'data': {'items': items}}
+        auction_patch_data = {'data': {'items': items, 'dgfID': lot.lotIdentifier}}
         self.api_client.patch_resource_item(
             api_auction_doc.id, auction_patch_data
         )
-        LOGGER.info('Added {} items to auction {}'.format(len(items),
-                                                          auction_doc['id']))
+        LOGGER.info('Auction: {} was formed from lot: {}'.format(auction_doc['id'], lot.id))
 
         # Add documents to CDB
         for document in documents:
@@ -176,7 +175,9 @@ class Convoy(object):
                                     auction_doc['id'],
                                     document['relatedItem'])
             )
+        return True
 
+    def _activate_auction(self, lot, auction_doc):
         # Switch lot
         self.lots_client.patch_resource_item(lot['id'], {'data': {'status': 'active.auction'}})
         LOGGER.info('Switch lot {} to (active.auction) status'.format(lot['id']))
@@ -184,6 +185,14 @@ class Convoy(object):
         # Switch auction
         self.api_client.patch_resource_item(auction_doc['id'], {'data': {'status': 'active.tendering'}})
         LOGGER.info('Switch auction {} to (active.tendering) status'.format(auction_doc['id']))
+
+    def prepare_auction(self, auction_doc):
+        LOGGER.info('Prepare auction {}'.format(auction_doc.id))
+        lot = self._receive_lot(auction_doc)
+        if lot:
+            auction_formed  = self._form_auction(lot, auction_doc)
+            if auction_formed:
+                self._activate_auction(lot, auction_doc)
 
     def report_results(self, auction_doc):
         LOGGER.info('Report auction results {}'.format(auction_doc.id))
