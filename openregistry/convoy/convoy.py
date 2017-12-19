@@ -214,12 +214,17 @@ class Convoy(object):
 
         if auction_doc.status == 'complete':
             next_lot_status = 'sold'
+            next_assets_status = 'complete'
         else:
             next_lot_status = 'active.salable'
 
         # Report results
         self.lots_client.patch_resource_item(lot['id'], {'data': {'status': next_lot_status}})
         LOGGER.info('Switch lot {} to ({}) status'.format(lot['id'], next_lot_status))
+        if auction_doc.status == 'complete':
+            for asset_id in lot['assets']:
+                self.assets_client.patch_asset(asset_id, {'data': {'status': next_assets_status}})
+                LOGGER.info('Switch asset {} to ({}) status'.format(asset_id, next_assets_status))
 
     def file_bridge(self):
         while not self.stop_transmitting:
