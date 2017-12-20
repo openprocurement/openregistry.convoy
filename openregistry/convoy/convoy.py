@@ -213,7 +213,7 @@ class Convoy(object):
         LOGGER.info('Received lot {} from CDB'.format(lot_id))
 
         if auction_doc.status == 'complete':
-            next_lot_status = 'sold'
+            next_lot_status = 'pending.sold'
         else:
             next_lot_status = 'active.salable'
 
