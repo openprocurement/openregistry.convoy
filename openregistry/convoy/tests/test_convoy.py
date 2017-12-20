@@ -269,6 +269,39 @@ class TestConvoySuite(unittest.TestCase):
         mock_spawn.assert_called_with(convoy.file_bridge)
         self.assertEqual(convoy.prepare_auction.call_count, 2)
 
+    @mock.patch('requests.Response.raise_for_status')
+    def test_report_result(self, mock_raise):
+        auction_doc = Munch({
+            'id': uuid4().hex,  # this is auction id
+            'status': 'complete',
+            'merchandisingObject': uuid4().hex
+        })
+        lc = mock.MagicMock()
+        lot = munchify({
+            'data': {
+                'id': auction_doc['merchandisingObject'],
+                'lotIdentifier': u'Q81318b19827',
+                'status': u'active.auction',
+                'assets': ['580d38b347134ac6b0ee3f04e34b9770']
+            }
+        })
+        lc.get_lot.return_value = lot
+        convoy = Convoy(self.config)
+        convoy.lots_client = lc
+        convoy.assets_client = mock.MagicMock()
+        convoy.report_results(auction_doc)
+        convoy.lots_client.patch_resource_item.assert_called_with(
+            auction_doc.merchandisingObject,
+            {'data': {'status': 'pending.sold'}}
+        )
+
+        auction_doc.status = 'pending.verification'
+        convoy.report_results(auction_doc)
+        convoy.lots_client.patch_resource_item.assert_called_with(
+            auction_doc.merchandisingObject,
+            {'data': {'status': 'active.salable'}}
+        )
+
     @mock.patch('openregistry.convoy.convoy.argparse.ArgumentParser',
                 MockedArgumentParser)
     @mock.patch('openregistry.convoy.convoy.Convoy')
