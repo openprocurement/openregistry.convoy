@@ -223,6 +223,59 @@ class TestConvoySuite(unittest.TestCase):
         convoy.api_client.create_resource_item_subitem.assert_called_with(
             a_doc['id'], {'data': documents[1]}, 'documents')
 
+        # convoy.prepare_auction(a_doc) with active.awaiting lot
+        lc.get_lot.return_value = munchify({
+            'data': {
+                'id': a_doc['merchandisingObject'],
+                'lotIdentifier': u'Q81318b19827',
+                'status': u'active.awaiting',
+                'assets': ['580d38b347134ac6b0ee3f04e34b9770'],
+                'auctions': [a_doc['id']]
+            }
+        })
+        items, documents = convoy._create_items_from_assets(asset_ids)
+        convoy._create_items_from_assets = mock.MagicMock(return_value=(
+            items, documents))
+
+        lot = convoy._receive_lot(a_doc)
+        convoy._form_auction(lot, a_doc)
+        convoy.api_client.patch_resource_item.assert_called_with(a_doc['id'], expected)
+        convoy._activate_auction(lot, a_doc)
+        self.assertEqual(convoy.documents_transfer_queue.qsize(), 2)
+        convoy.lots_client.get_lot.assert_called_with(
+            a_doc['merchandisingObject'])
+        convoy.lots_client.patch_resource_item.assert_called_with(
+            a_doc['merchandisingObject'],
+            {
+                'data': {
+                    'status': 'active.auction'
+                }
+            }
+        )
+        convoy._create_items_from_assets.assert_called_with(asset_ids)
+        convoy.api_client.get_resource_item.assert_called_with(a_doc['id'])
+        convoy.api_client.patch_resource_item.assert_called_with(
+            api_auction_doc['data']['id'],
+            patched_api_auction_doc)
+        convoy.api_client.create_resource_item_subitem.assert_called_with(
+            a_doc['id'], {'data': documents[1]}, 'documents')
+
+        # convoy.prepare_auction(a_doc) with active.auction lot
+        lc.get_lot.return_value = munchify({
+            'data': {
+                'id': a_doc['merchandisingObject'],
+                'lotIdentifier': u'Q81318b19827',
+                'status': u'active.auction',
+                'assets': ['580d38b347134ac6b0ee3f04e34b9770'],
+                'auctions': [a_doc['id']]
+            }
+        })
+        convoy._receive_lot(a_doc)
+        patched_api_auction_doc = {'data': {'status': 'active.tendering'}}
+        convoy.api_client.patch_resource_item.assert_called_with(
+            api_auction_doc['data']['id'],
+            patched_api_auction_doc)
+
     @mock.patch('requests.Response.raise_for_status')
     def test_file_bridge(self, mock_raise):
         convoy = Convoy(self.config)
