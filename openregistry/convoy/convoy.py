@@ -123,9 +123,12 @@ class Convoy(object):
         except ResourceNotFound:
             self.invalidate_auction(auction_doc.id)
             return
-
         LOGGER.info('Received lot {} from CDB'.format(lot_id))
-        if lot.status != u'active.salable':
+        is_lot_unusable = bool(
+            lot.status not in [u'active.salable', u'active.awaiting', u'active.auction'] or
+            (lot.status == u'active.awaiting' and auction_doc.id != lot.auctions[0])
+        )
+        if is_lot_unusable:
             # lot['status'] = 'active.salable'
             # self.lots_client.patch_resource_item(lot)
             LOGGER.warning(
@@ -133,6 +136,11 @@ class Convoy(object):
                     lot.status),
                 extra={'MESSAGE_ID': 'invalid_lot_status'})
             self.invalidate_auction(auction_doc.id)
+            return
+        elif lot.status == u'active.auction' and auction_doc.id == lot.auctions[0]:
+            # Switch auction
+            self.api_client.patch_resource_item(auction_doc['id'], {'data': {'status': 'active.tendering'}})
+            LOGGER.info('Switch auction {} to (active.tendering) status'.format(auction_doc['id']))
             return
 
         # Lock lot
