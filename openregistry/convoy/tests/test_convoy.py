@@ -238,6 +238,7 @@ class TestConvoySuite(unittest.TestCase):
             items, documents))
 
         lot = convoy._receive_lot(a_doc)
+        self.assertEqual(len(lot.auctions), 1)
         convoy._form_auction(lot, a_doc)
         convoy.api_client.patch_resource_item.assert_called_with(a_doc['id'], expected)
         convoy._activate_auction(lot, a_doc)

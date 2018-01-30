@@ -125,8 +125,8 @@ class Convoy(object):
             return
         LOGGER.info('Received lot {} from CDB'.format(lot_id))
         is_lot_unusable = bool(
-            lot.status not in [u'active.salable', u'active.awaiting', u'active.auction'] or
-            (lot.status == u'active.awaiting' and auction_doc.id != lot.auctions[0])
+            (lot.status == u'active.awaiting' and auction_doc.id != lot.auctions[-1]) or
+            lot.status not in [u'active.salable', u'active.awaiting', u'active.auction']
         )
         if is_lot_unusable:
             # lot['status'] = 'active.salable'
@@ -137,11 +137,13 @@ class Convoy(object):
                 extra={'MESSAGE_ID': 'invalid_lot_status'})
             self.invalidate_auction(auction_doc.id)
             return
-        elif lot.status == u'active.auction' and auction_doc.id == lot.auctions[0]:
+        elif lot.status == u'active.auction' and auction_doc.id == lot.auctions[-1]:
             # Switch auction
             self.api_client.patch_resource_item(auction_doc['id'], {'data': {'status': 'active.tendering'}})
             LOGGER.info('Switch auction {} to (active.tendering) status'.format(auction_doc['id']))
             return
+        elif lot.status == u'active.awaiting' and auction_doc.id == lot.auctions[-1]:
+            return lot
 
         # Lock lot
         auctions_list = lot.get('auctions', [])
@@ -198,7 +200,7 @@ class Convoy(object):
         LOGGER.info('Prepare auction {}'.format(auction_doc.id))
         lot = self._receive_lot(auction_doc)
         if lot:
-            auction_formed  = self._form_auction(lot, auction_doc)
+            auction_formed = self._form_auction(lot, auction_doc)
             if auction_formed:
                 self._activate_auction(lot, auction_doc)
 
