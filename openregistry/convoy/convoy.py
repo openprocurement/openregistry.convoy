@@ -36,6 +36,8 @@ class Convoy(object):
         self.documents_transfer_queue = Queue()
         self.timeout = self.convoy_conf.get('timeout', 10)
         self.api_client = APIClient(**self.convoy_conf['cdb'])
+        if not hasattr(self.api_client, 'ds_client'):
+            LOGGER.warning("Document Service configuration is not available.")
         self.lots_client = LotsClient(**self.convoy_conf['lots_db'])
         self.assets_client = AssetsClient(**self.convoy_conf['assets_db'])
         self.keys = ['classification', 'additionalClassifications', 'address',
@@ -64,14 +66,21 @@ class Convoy(object):
         LOGGER.info('Added filters doc to db.')
 
     def _get_documents(self, item):
+        if not hasattr(self.api_client, 'ds_client'):
+            return []
         documents = []
         for doc in item.get('documents', []):
             item_document = {
                 k: doc[k] for k in self.document_keys if k in doc
             }
-            registered_doc = self.api_client.ds_client.register_document_upload(doc['hash'])
-            LOGGER.info('Registered document upload for item {} with hash'
+            try:
+                registered_doc = self.api_client.ds_client.register_document_upload(doc['hash'])
+                LOGGER.info('Registered document upload for item {} with hash'
                         ' {}'.format(item.id, doc['hash']))
+            except:
+                LOGGER.error('While registering document upload '
+                             'something went wrong :(')
+                continue
             transfer_item = {
                 'get_url': doc.url,
                 'upload_url': registered_doc['upload_url']
