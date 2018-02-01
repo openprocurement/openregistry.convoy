@@ -45,6 +45,10 @@
       handlers: [console]
       propagate: no
       level: DEBUG
+    openregistry.convoy:
+      handlers: [console]
+      propagate: no
+      level: DEBUG
 
     openregistry.convoy.utils:
       handlers: [console]
