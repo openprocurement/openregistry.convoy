@@ -41,16 +41,7 @@
 
 
   loggers:
-    openregistry.convoy.convoy:
-      handlers: [console]
-      propagate: no
-      level: DEBUG
     openregistry.convoy:
-      handlers: [console]
-      propagate: no
-      level: DEBUG
-
-    openregistry.convoy.utils:
       handlers: [console]
       propagate: no
       level: DEBUG

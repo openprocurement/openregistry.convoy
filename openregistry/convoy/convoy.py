@@ -18,7 +18,11 @@ from gevent.queue import Queue, Empty
 from gevent import spawn, sleep
 from couchdb import Server, Session
 
-LOGGER = logging.getLogger(__name__)
+from pkg_resources import get_distribution
+
+
+PKG = get_distribution(__package__)
+LOGGER = logging.getLogger(PKG.project_name)
 
 
 class Convoy(object):
