@@ -9,12 +9,12 @@
     db: "ea_auctions"
   cdb:
     key: "api_key"
-    host_url: "http://api-sandbox.openprocurement.org"
+    host_url: "https://lb.api-sandbox.ea.openprocurement.org"
     api_version: "2.3"
     resource: "auctions"
     user_agent: "convoy"
     ds_config:
-      host_url: "http://docs-sandbox.openprocurement.org"
+      host_url: "http://docs-sandbox.ea.openprocurement.org"
       auth_ds: ["login", "password"]
   lots_db:
     key: "lots_api_key"
