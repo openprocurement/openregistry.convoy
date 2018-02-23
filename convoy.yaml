@@ -9,7 +9,7 @@
     db: "ea_auctions"
   cdb:
     key: "api_key"
-    host_url: "http://api-sandbox.openprocurement.org"
+    host_url: "http://prozorro.gov.ua"
     api_version: "2.3"
     resource: "auctions"
     user_agent: "convoy"
