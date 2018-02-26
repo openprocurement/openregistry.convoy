@@ -6,6 +6,7 @@ import unittest
 import json
 import mock
 import os
+from copy import deepcopy
 from yaml import load
 from gevent.queue import Queue
 from munch import munchify, Munch
@@ -14,6 +15,7 @@ from openprocurement_client.resources.assets import AssetsClient
 from openprocurement_client.resources.lots import LotsClient
 from openprocurement_client.clients import APIResourceClient
 from openregistry.convoy.convoy import Convoy, main as convoy_main
+from openregistry.convoy.constants import DEFAULTS
 from uuid import uuid4
 
 # Absolute path to file, dropping 'openregistry/convoy/tests' part
@@ -27,13 +29,15 @@ class MockedArgumentParser(mock.MagicMock):
         super(MockedArgumentParser, self).__init__()
         self.description = description
 
-    def add_argument(self, argument_name, type, help):
-        self.argument_name = argument_name
-        self.help = help
+    def add_argument(self, *args, **kwargs):
+        for key, item in kwargs.items():
+            setattr(self, key, item)
 
     def parse_args(self):
-        return munchify({'config': '{}/{}'.format(ROOT,
-                                                  '/convoy.yaml')})
+        return munchify({
+            'config': '{}/{}'.format(ROOT, '/convoy.yaml'),
+            'check': False
+        })
 
 
 class TestConvoySuite(unittest.TestCase):
@@ -75,6 +79,18 @@ class TestConvoySuite(unittest.TestCase):
         self.assertIsInstance(convoy.assets_client, AssetsClient)
         self.assertIsInstance(convoy.db, Database)
         self.assertEqual(convoy.db.name, self.config['couchdb']['db'])
+
+        convoy = Convoy(DEFAULTS)
+        self.assertEqual(convoy.stop_transmitting, False)
+        self.assertEqual(convoy.transmitter_timeout,
+                         DEFAULTS['transmitter_timeout'])
+        self.assertEqual(convoy.timeout, DEFAULTS['timeout'])
+        self.assertIsInstance(convoy.documents_transfer_queue, Queue)
+        self.assertIsInstance(convoy.api_client, APIResourceClient)
+        self.assertIsInstance(convoy.lots_client, LotsClient)
+        self.assertIsInstance(convoy.assets_client, AssetsClient)
+        self.assertIsInstance(convoy.db, Database)
+        self.assertEqual(convoy.db.name, DEFAULTS['couchdb']['db'])
 
     def fake_response(self):
         return None
@@ -361,8 +377,9 @@ class TestConvoySuite(unittest.TestCase):
     @mock.patch('openregistry.convoy.convoy.Convoy')
     def test__main(self, mock_convoy):
         convoy_main()
+        config_dict = deepcopy(DEFAULTS)
         with open('{}/{}'.format(ROOT, 'convoy.yaml'), 'r') as cf:
-            config_dict = load(cf.read())
+            config_dict.update(load(cf.read()))
         mock_convoy.assert_called_once_with(config_dict)
         self.assertEqual(mock_convoy().run.call_count, 1)
 
