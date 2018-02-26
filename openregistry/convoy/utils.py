@@ -4,6 +4,13 @@ from pkg_resources import get_distribution
 from time import sleep
 from munch import Munch
 
+from openprocurement_client.clients import APIResourceClient as APIClient
+from openprocurement_client.resources.assets import AssetsClient
+from openprocurement_client.resources.lots import LotsClient
+
+from couchdb import Server, Session
+
+
 PKG = get_distribution(__package__)
 LOGGER = getLogger(PKG.project_name)
 
@@ -53,3 +60,53 @@ def continuous_changes_feed(db, timeout=10, limit=100,
                 yield item
         else:
             sleep(timeout)
+
+
+def init_clients(config, is_check=False):
+    exceptions = []
+    clients_from_config = {
+        'api_client': {'section': 'cdb', 'client_instance': APIClient},
+        'lots_client': {'section': 'lots_db', 'client_instance': LotsClient},
+        'assets_client': {'section': 'assets_db', 'client_instance': AssetsClient},
+    }
+    result = ''
+
+    for key, item in clients_from_config.items():
+        try:
+            client = item['client_instance'](**config[item['section']])
+            clients_from_config[key] = client
+            result = 'ok'
+        except Exception as e:
+            exceptions.append(e)
+            result = 'failed {} - {}'.format(repr(e.args), e.message)
+        LOGGER.info('{} - {}'.format(key, result))
+    if not hasattr(clients_from_config['api_client'], 'ds_client'):
+        LOGGER.warning("Document Service configuration is not available.")
+
+    try:
+        user = config['couchdb'].get('user', '')
+        password = config['couchdb'].get('password', '')
+        url = "http://{host}:{port}".format(**config['couchdb'])
+        result = 'couchdb without user'
+        if user and password:
+            url = "http://{user}:{password}@{host}:{port}".format(**config['couchdb'])
+            result = 'couchdb - authorized'
+        LOGGER.info(result)
+        server = Server(url, session=Session(retry_delays=range(10)))
+        db = server[config['couchdb']['db']] if \
+            config['couchdb']['db'] in server else \
+            server.create(config['couchdb']['db'])
+        clients_from_config['db'] = db
+        result = 'ok'
+        push_filter_doc(db)
+        LOGGER.info('Added filters doc to db.')
+    except Exception as e:
+        import pdb; pdb.set_trace()
+        exceptions.append(e)
+        result = 'failed {}'.format(type(e))
+    LOGGER.info('couchdb - {}'.format(result))
+
+    if not is_check and exceptions:
+        raise exceptions[0]
+
+    return clients_from_config
