@@ -101,7 +101,6 @@ def init_clients(config, is_check=False):
         push_filter_doc(db)
         LOGGER.info('Added filters doc to db.')
     except Exception as e:
-        import pdb; pdb.set_trace()
         exceptions.append(e)
         result = 'failed {}'.format(type(e))
     LOGGER.info('couchdb - {}'.format(result))

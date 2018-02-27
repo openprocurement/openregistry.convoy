@@ -264,7 +264,7 @@ def main():
             logging.config.dictConfig(config)
     DEFAULTS.update(config)
     if params.check:
-        init_clients(config, params.check)
+        init_clients(DEFAULTS, params.check)
         exit()
     Convoy(DEFAULTS).run()
 
