@@ -263,10 +263,10 @@ def main():
             config = load(config_file_obj.read())
             logging.config.dictConfig(config)
     DEFAULTS.update(config)
+    convoy = Convoy(DEFAULTS)
     if params.check:
-        init_clients(DEFAULTS, params.check)
         exit()
-    Convoy(DEFAULTS).run()
+    convoy.run()
 
 
 ###############################################################################
