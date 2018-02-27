@@ -15,20 +15,20 @@ DEFAULTS = {
     "cdb": {
         "key": "",
         "host_url": "http://127.0.0.1:6543",
-        "api_version": 2.5,
+        "api_version": 0,
         "user_agent": "auctions_convoy",
         "resource": "auctions"
     },
     "lots_db": {
         "key": "convoy",
         "host_url": "http://0.0.0.0:6543",
-        "api_version": 0.1,
+        "api_version": 0,
         "user_agent": "lots_convoy"
     },
     "assets_db": {
         "key": "convoy",
         "host_url": "http://0.0.0.0:6543",
-        "api_version": 0.1,
+        "api_version": 0,
         "user_agent": "assets_convoy"
     },
     "version": 1,
