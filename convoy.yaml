@@ -10,7 +10,7 @@
   cdb:
     key: "api_key"
     host_url: "https://lb.api-sandbox.ea.openprocurement.org"
-    api_version: "2.3"
+    api_version: "0"
     resource: "auctions"
     user_agent: "convoy"
     ds_config:
@@ -19,12 +19,12 @@
   lots_db:
     key: "lots_api_key"
     host_url: "https://lb.api-sandbox.registry.ea.openprocurement.net"
-    api_version: "0.1"
+    api_version: "0"
     user_agent: "lots_convoy"
   assets_db:
     key: "api_key"
     host_url: "https://lb.api-sandbox.registry.ea.openprocurement.net"
-    api_version: "0.1"
+    api_version: "0"
     user_agent: "assets_convoy"
   version: 1
 

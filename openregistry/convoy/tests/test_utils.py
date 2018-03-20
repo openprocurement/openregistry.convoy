@@ -3,12 +3,21 @@ import unittest
 import json
 import mock
 from uuid import uuid4
+
+from couchdb import Server, Session, Database
+
+from openprocurement_client.clients import APIResourceClient
+from openprocurement_client.resources.assets import AssetsClient
+from openprocurement_client.resources.lots import LotsClient
+
 from openregistry.convoy.utils import (
     push_filter_doc,
     continuous_changes_feed,
     FILTER_DOC_ID,
-    FILTER_CONVOY_FEED_DOC
+    FILTER_CONVOY_FEED_DOC,
+    init_clients
 )
+from openregistry.convoy.constants import DEFAULTS
 
 
 class AlmostAlwaysTrue(object):
@@ -44,6 +53,14 @@ class TestUtilsSuite(unittest.TestCase):
         push_filter_doc(db)
         self.assertEqual(db.get.call_count, 2)
         db.save.assert_called_once_with(filter_doc)
+
+    def test_init_clients(self):
+        clients = init_clients(DEFAULTS)
+        self.assertIsInstance(clients['api_client'], APIResourceClient)
+        self.assertIsInstance(clients['lots_client'], LotsClient)
+        self.assertIsInstance(clients['assets_client'], AssetsClient)
+        self.assertIsInstance(clients['db'], Database)
+        self.assertEqual(clients['db'].name, DEFAULTS['couchdb']['db'])
 
     def test_continuous_changes_feed(self):
         db = mock.MagicMock()

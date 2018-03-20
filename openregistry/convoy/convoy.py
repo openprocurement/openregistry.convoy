@@ -7,16 +7,13 @@ import logging.config
 import os
 import argparse
 from yaml import load
-from openprocurement_client.clients import APIResourceClient as APIClient
 from openprocurement_client.exceptions import ResourceNotFound
 from openprocurement_client.constants import DOCUMENTS
-from openprocurement_client.resources.assets import AssetsClient
-from openprocurement_client.resources.lots import LotsClient
-from openregistry.convoy.utils import continuous_changes_feed, push_filter_doc
+from openregistry.convoy.utils import continuous_changes_feed, init_clients
+from openregistry.convoy.constants import DEFAULTS, DOCUMENT_KEYS, KEYS
 
 from gevent.queue import Queue, Empty
 from gevent import spawn, sleep
-from couchdb import Server, Session
 
 from pkg_resources import get_distribution
 
@@ -37,37 +34,12 @@ class Convoy(object):
         self.stop_transmitting = False
         self.transmitter_timeout = self.convoy_conf.get('transmitter_timeout',
                                                         10)
+        for key, item in init_clients(convoy_conf).items():
+            setattr(self, key, item)
         self.documents_transfer_queue = Queue()
         self.timeout = self.convoy_conf.get('timeout', 10)
-        self.api_client = APIClient(**self.convoy_conf['cdb'])
-        if not hasattr(self.api_client, 'ds_client'):
-            LOGGER.warning("Document Service configuration is not available.")
-        self.lots_client = LotsClient(**self.convoy_conf['lots_db'])
-        self.assets_client = AssetsClient(**self.convoy_conf['assets_db'])
-        self.keys = ['classification', 'additionalClassifications', 'address',
-                'unit', 'quantity', 'location', 'id']
-        self.document_keys = ['hash', 'description', 'title', 'url', 'format',
-                         'documentType']
-        user = self.convoy_conf['couchdb'].get('user', '')
-        password = self.convoy_conf['couchdb'].get('password', '')
-        if user and password:
-            server = Server(
-                "http://{user}:{password}@{host}:{port}".format(
-                    **self.convoy_conf['couchdb']),
-                session=Session(retry_delays=range(10)))
-            self.db = server[self.convoy_conf['couchdb']['db']] if \
-                self.convoy_conf['couchdb']['db'] in server else \
-                server.create(self.convoy_conf['couchdb']['db'])
-        else:
-            server = Server(
-                "http://{host}:{port}".format(
-                    **self.convoy_conf['couchdb']),
-                session=Session(retry_delays=range(10)))
-            self.db = server[self.convoy_conf['couchdb']['db']] if \
-                self.convoy_conf['couchdb']['db'] in server else \
-                server.create(self.convoy_conf['couchdb']['db'])
-        push_filter_doc(self.db)
-        LOGGER.info('Added filters doc to db.')
+        self.keys = KEYS
+        self.document_keys = DOCUMENT_KEYS
 
     def _get_documents(self, item):
         if not hasattr(self.api_client, 'ds_client'):
@@ -281,12 +253,20 @@ class Convoy(object):
 def main():
     parser = argparse.ArgumentParser(description='--- OpenRegistry Convoy ---')
     parser.add_argument('config', type=str, help='Path to configuration file')
+    parser.add_argument('-t', dest='check', action='store_const',
+                        const=True, default=False,
+                        help='Clients check only')
     params = parser.parse_args()
+    config = {}
     if os.path.isfile(params.config):
         with open(params.config) as config_file_obj:
             config = load(config_file_obj.read())
             logging.config.dictConfig(config)
-            Convoy(config).run()
+    DEFAULTS.update(config)
+    convoy = Convoy(DEFAULTS)
+    if params.check:
+        exit()
+    convoy.run()
 
 
 ###############################################################################
