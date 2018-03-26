@@ -54,7 +54,9 @@ class TestUtilsSuite(unittest.TestCase):
         self.assertEqual(db.get.call_count, 2)
         db.save.assert_called_once_with(filter_doc)
 
-    def test_init_clients(self):
+    @mock.patch('requests.Response.raise_for_status')
+    @mock.patch('requests.Session.request')
+    def test_init_clients(self, mock_raise, mock_request):
         clients = init_clients(DEFAULTS)
         self.assertIsInstance(clients['api_client'], APIResourceClient)
         self.assertIsInstance(clients['lots_client'], LotsClient)

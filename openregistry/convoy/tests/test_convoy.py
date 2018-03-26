@@ -23,6 +23,7 @@ from uuid import uuid4
 ROOT = '/'.join(os.path.dirname(__file__).split('/')[:-3])
 
 
+
 class MockedArgumentParser(mock.MagicMock):
 
     def __init__(self, description):
@@ -67,7 +68,8 @@ class TestConvoySuite(unittest.TestCase):
         del self.server[self.config['couchdb']['db']]
 
     @mock.patch('requests.Response.raise_for_status')
-    def test_init(self, mock_raise):
+    @mock.patch('requests.Session.request')
+    def test_init(self, mock_raise, mock_request):
         convoy = Convoy(self.config)
         self.assertEqual(convoy.stop_transmitting, False)
         self.assertEqual(convoy.transmitter_timeout,
@@ -96,7 +98,8 @@ class TestConvoySuite(unittest.TestCase):
         return None
 
     @mock.patch('requests.Response.raise_for_status')
-    def test__create_items_from_assets(self, mock_raise):
+    @mock.patch('requests.Session.request')
+    def test__create_items_from_assets(self, mock_raise, mock_request):
         items_keys = ['classification', 'additionalClassifications', 'address',
                       'unit', 'quantity', 'location', 'id']
         documents_keys = ['hash', 'description', 'title', 'format',
@@ -147,7 +150,8 @@ class TestConvoySuite(unittest.TestCase):
         self.assertEqual(convoy.documents_transfer_queue.qsize(), 1)
 
     @mock.patch('requests.Response.raise_for_status')
-    def test_prepare_auction(self, mock_raise):
+    @mock.patch('requests.Session.request')
+    def test_prepare_auction(self, mock_raise, mock_request):
         a_doc = Munch({
             'id': uuid4().hex,  # this is auction id
             'merchandisingObject': uuid4().hex
@@ -294,7 +298,8 @@ class TestConvoySuite(unittest.TestCase):
             patched_api_auction_doc)
 
     @mock.patch('requests.Response.raise_for_status')
-    def test_file_bridge(self, mock_raise):
+    @mock.patch('requests.Session.request')
+    def test_file_bridge(self, mock_raise, mock_request):
         convoy = Convoy(self.config)
         for i in xrange(0, 2):
             convoy.documents_transfer_queue.put({
@@ -317,10 +322,11 @@ class TestConvoySuite(unittest.TestCase):
             convoy.api_client.ds_client.document_upload_not_register.
             call_count, 2)
 
+    @mock.patch('requests.Session.request')
     @mock.patch('requests.Response.raise_for_status')
     @mock.patch('openregistry.convoy.convoy.spawn')
     @mock.patch('openregistry.convoy.convoy.continuous_changes_feed')
-    def test_run(self, mock_changes, mock_spawn, mock_raise):
+    def test_run(self, mock_changes, mock_spawn, mock_raise, mock_request):
         mock_changes.return_value = [
             munchify({'status': 'pending.verification', 'id': uuid4().hex, 'merchandisingObject': uuid4().hex}),
             munchify({'status': 'pending.verification', 'id': uuid4().hex, 'merchandisingObject': uuid4().hex})
@@ -340,7 +346,8 @@ class TestConvoySuite(unittest.TestCase):
         self.assertEqual(convoy.prepare_auction.call_count, 2)
 
     @mock.patch('requests.Response.raise_for_status')
-    def test_report_result(self, mock_raise):
+    @mock.patch('requests.Session.request')
+    def test_report_result(self, mock_raise, mock_request):
         auction_doc = Munch({
             'id': uuid4().hex,  # this is auction id
             'status': 'complete',
@@ -372,10 +379,11 @@ class TestConvoySuite(unittest.TestCase):
             {'data': {'status': 'active.salable'}}
         )
 
+    @mock.patch('requests.Session.request')
     @mock.patch('openregistry.convoy.convoy.argparse.ArgumentParser',
                 MockedArgumentParser)
     @mock.patch('openregistry.convoy.convoy.Convoy')
-    def test__main(self, mock_convoy):
+    def test__main(self, mock_convoy, mock_request):
         convoy_main()
         config_dict = deepcopy(DEFAULTS)
         with open('{}/{}'.format(ROOT, 'convoy.yaml'), 'r') as cf:
