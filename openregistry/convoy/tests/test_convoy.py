@@ -49,8 +49,8 @@ class TestConvoySuite(unittest.TestCase):
                                               'files/')
         with open('{}/convoy.yaml'.format(ROOT)) as config_file_obj:
             self.config = load(config_file_obj.read())
-        user = self.config['couchdb'].get('user', '')
-        password = self.config['couchdb'].get('password', '')
+        user = self.config['db'].get('name', '')
+        password = self.config['db'].get('password', '')
         if user and password:
             self.server = Server(
                 "http://{user}:{password}@{host}:{port}".format(
@@ -59,13 +59,13 @@ class TestConvoySuite(unittest.TestCase):
         else:
             self.server = Server(
                 "http://{host}:{port}".format(
-                    **self.config['couchdb']),
+                    **self.config['db']),
                 session=Session(retry_delays=range(10)))
-        if self.config['couchdb']['db'] not in self.server:
-            self.server.create(self.config['couchdb']['db'])
+        if self.config['db']['name'] not in self.server:
+            self.server.create(self.config['db']['name'])
 
     def tearDown(self):
-        del self.server[self.config['couchdb']['db']]
+        del self.server[self.config['db']['name']]
 
     @mock.patch('requests.Response.raise_for_status')
     @mock.patch('requests.Session.request')
@@ -76,11 +76,11 @@ class TestConvoySuite(unittest.TestCase):
                          self.config['transmitter_timeout'])
         self.assertEqual(convoy.timeout, self.config['timeout'])
         self.assertIsInstance(convoy.documents_transfer_queue, Queue)
-        self.assertIsInstance(convoy.api_client, APIResourceClient)
+        self.assertIsInstance(convoy.auctions_client, APIResourceClient)
         self.assertIsInstance(convoy.lots_client, LotsClient)
         self.assertIsInstance(convoy.assets_client, AssetsClient)
         self.assertIsInstance(convoy.db, Database)
-        self.assertEqual(convoy.db.name, self.config['couchdb']['db'])
+        self.assertEqual(convoy.db.name, self.config['db']['name'])
 
         convoy = Convoy(DEFAULTS)
         self.assertEqual(convoy.stop_transmitting, False)
@@ -88,11 +88,11 @@ class TestConvoySuite(unittest.TestCase):
                          DEFAULTS['transmitter_timeout'])
         self.assertEqual(convoy.timeout, DEFAULTS['timeout'])
         self.assertIsInstance(convoy.documents_transfer_queue, Queue)
-        self.assertIsInstance(convoy.api_client, APIResourceClient)
+        self.assertIsInstance(convoy.auctions_client, APIResourceClient)
         self.assertIsInstance(convoy.lots_client, LotsClient)
         self.assertIsInstance(convoy.assets_client, AssetsClient)
         self.assertIsInstance(convoy.db, Database)
-        self.assertEqual(convoy.db.name, DEFAULTS['couchdb']['db'])
+        self.assertEqual(convoy.db.name, DEFAULTS['db']['name'])
 
     def fake_response(self):
         return None

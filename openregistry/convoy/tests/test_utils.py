@@ -58,11 +58,11 @@ class TestUtilsSuite(unittest.TestCase):
     @mock.patch('requests.Session.request')
     def test_init_clients(self, mock_raise, mock_request):
         clients = init_clients(DEFAULTS)
-        self.assertIsInstance(clients['api_client'], APIResourceClient)
+        self.assertIsInstance(clients['auctions_client'], APIResourceClient)
         self.assertIsInstance(clients['lots_client'], LotsClient)
         self.assertIsInstance(clients['assets_client'], AssetsClient)
         self.assertIsInstance(clients['db'], Database)
-        self.assertEqual(clients['db'].name, DEFAULTS['couchdb']['db'])
+        self.assertEqual(clients['db'].name, DEFAULTS['db']['name'])
 
     def test_continuous_changes_feed(self):
         db = mock.MagicMock()
