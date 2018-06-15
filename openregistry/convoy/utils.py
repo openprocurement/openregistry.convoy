@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
 from logging import getLogger, addLevelName, Logger
-from pkg_resources import get_distribution
+from socket import error
 from time import sleep
-from munch import Munch
-
-from openprocurement_client.clients import APIResourceClient as APIClient
-from openprocurement_client.resources.assets import AssetsClient
-from openprocurement_client.resources.lots import LotsClient
 
 from couchdb import Server, Session
+from munch import Munch
+from pkg_resources import get_distribution
+
+from openprocurement_client.resources.assets import AssetsClient
+from openprocurement_client.resources.auctions import AuctionsClient
+from openprocurement_client.resources.lots import LotsClient
+
 
 addLevelName(25, 'CHECK')
 
@@ -41,6 +43,26 @@ function(doc, req) {
 CONTINUOUS_CHANGES_FEED_FLAG = True  # Need for testing
 
 
+class ConfigError(Exception):
+    pass
+
+
+def prepare_couchdb(couch_url, db_name):
+    server = Server(couch_url, session=Session(retry_delays=range(10)))
+    try:
+        if db_name not in server:
+            db = server.create(db_name)
+        else:
+            db = server[db_name]
+
+        push_filter_doc(db)
+
+    except error as e:
+        LOGGER.error('Database error: {}'.format(e.message))
+        raise ConfigError(e.strerror)
+    return db
+
+
 def push_filter_doc(db):
     filters_doc = db.get(FILTER_DOC_ID, {'_id': FILTER_DOC_ID, 'filters': {}})
     if (filters_doc and filters_doc['filters'].get('convoy_feed') !=
@@ -51,6 +73,7 @@ def push_filter_doc(db):
         LOGGER.info('Filter doc \'convoy_feed\' saved.')
     else:
         LOGGER.info('Filter doc \'convoy_feed\' exist.')
+    LOGGER.info('Added filters doc to db.')
 
 
 def continuous_changes_feed(db, timeout=10, limit=100,
@@ -73,43 +96,46 @@ def continuous_changes_feed(db, timeout=10, limit=100,
 
 
 def init_clients(config):
-    exceptions = []
     clients_from_config = {
-        'api_client': {'section': 'cdb', 'client_instance': APIClient},
-        'lots_client': {'section': 'lots_db', 'client_instance': LotsClient},
-        'assets_client': {'section': 'assets_db', 'client_instance': AssetsClient},
+        'auctions_client': {'section': 'auctions', 'client_instance': AuctionsClient},
+        'lots_client': {'section': 'lots', 'client_instance': LotsClient},
+        'assets_client': {'section': 'assets', 'client_instance': AssetsClient},
     }
-    result = ''
+    exceptions = []
 
     for key, item in clients_from_config.items():
+        section = item['section']
         try:
-            client = item['client_instance'](**config[item['section']])
+            client = item['client_instance'](
+                key=config[section]['api']['token'],
+                host_url=config[section]['api']['url'],
+                api_version=config[section]['api']['version'],
+                ds_config=config[section].get('ds', None)
+            )
             clients_from_config[key] = client
             result = ('ok', None)
         except Exception as e:
             exceptions.append(e)
             result = ('failed', e)
         LOGGER.check('{} - {}'.format(key, result[0]), result[1])
-    if not hasattr(clients_from_config['api_client'], 'ds_client'):
+    if not hasattr(clients_from_config['auctions_client'], 'ds_client'):
         LOGGER.warning("Document Service configuration is not available.")
 
     try:
-        user = config['couchdb'].get('user', '')
-        password = config['couchdb'].get('password', '')
-        url = "http://{host}:{port}".format(**config['couchdb'])
-        result = 'couchdb without user'
-        if user and password:
-            url = "http://{user}:{password}@{host}:{port}".format(**config['couchdb'])
-            result = 'couchdb - authorized'
-        LOGGER.info(result)
-        server = Server(url, session=Session(retry_delays=range(10)))
-        db = server[config['couchdb']['db']] if \
-            config['couchdb']['db'] in server else \
-            server.create(config['couchdb']['db'])
-        clients_from_config['db'] = db
+        if config['db'].get('login', '') \
+                and config['db'].get('password', ''):
+            db_url = "http://{login}:{password}@{host}:{port}".format(
+                **config['db']
+            )
+            LOGGER.info('couchdb - authorized')
+        else:
+            db_url = "http://{host}:{port}".format(**config['db'])
+            LOGGER.info('couchdb without user')
+
+        clients_from_config['db'] = prepare_couchdb(
+            db_url, config['db']['name']
+        )
         result = ('ok', None)
-        push_filter_doc(db)
-        LOGGER.info('Added filters doc to db.')
     except Exception as e:
         exceptions.append(e)
         result = ('failed', e)
