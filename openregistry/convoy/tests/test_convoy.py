@@ -7,10 +7,12 @@ import json
 import mock
 import os
 from copy import deepcopy
+from random import choice
 from yaml import load
 from gevent.queue import Queue
 from munch import munchify, Munch
 from couchdb import Server, Session, Database
+from openprocurement_client.exceptions import ResourceNotFound
 from openprocurement_client.resources.assets import AssetsClient
 from openprocurement_client.resources.lots import LotsClient
 from openprocurement_client.clients import APIResourceClient
@@ -359,7 +361,7 @@ class TestConvoySuite(unittest.TestCase):
 
     @mock.patch('requests.Response.raise_for_status')
     @mock.patch('requests.Session.request')
-    def test_report_result(self, mock_raise, mock_request):
+    def test_report_result_basic(self, mock_raise, mock_request):
         auction_doc = Munch({
             'id': uuid4().hex,  # this is auction id
             'status': 'complete',
@@ -390,6 +392,114 @@ class TestConvoySuite(unittest.TestCase):
         convoy.lots_client.patch_resource_item.assert_called_with(
             auction_doc.merchandisingObject,
             {'data': {'status': 'active.salable'}}
+        )
+
+    @mock.patch('requests.Response.raise_for_status')
+    @mock.patch('requests.Session.request')
+    def test_report_result_loki_success(self, mock_raise, mock_request):
+
+        terminal_loki_auction_statuses = ['complete', 'cancelled', 'unsuccessful']
+        auction_docs = []
+        lots = []
+        lc = mock.MagicMock()
+
+        for status in terminal_loki_auction_statuses:
+            auction_docs.append(Munch({
+                'id': uuid4().hex,  # this is auction id
+                'status': status,
+                'merchandisingObject': uuid4().hex,
+                'procurementMethodType': choice(['sellout.insider', 'sellout.english'])
+            }))
+
+        lot_auctions = deepcopy(auction_docs)
+        for auction in lot_auctions:
+            auction.status = 'active'
+
+        for auction_doc in auction_docs:
+            lots.append(munchify({
+                'data': {
+                    'id': auction_doc.merchandisingObject,
+                    'relatedProcessID': auction_doc.id,
+                    'status': u'active.auction',
+                    'auctions': lot_auctions
+                }
+            }))
+        lc.get_lot.side_effect = lots
+        convoy = Convoy(self.config)
+        for auction_doc in auction_docs:
+            loki_processing = convoy.auction_type_processing_configurator[auction_doc.procurementMethodType]
+            convoy.lots_client = loki_processing.lots_client = lc
+            loki_processing.report_results(auction_doc)
+            convoy.lots_client.patch_resource_item_subitem.assert_called_with(
+                resource_item_id=auction_doc.merchandisingObject,
+                patch_data={'data': {'status': auction_doc.status}},
+                subitem_name='auctions',
+                subitem_id=auction_doc.id
+            )
+
+    @mock.patch('logging.Logger.warning')
+    @mock.patch('requests.Response.raise_for_status')
+    @mock.patch('requests.Session.request')
+    def test_report_result_loki_not_found(self, mock_raise, mock_request, mock_logger):
+
+        lc = mock.MagicMock()
+
+        auction_doc = Munch({
+            'id': uuid4().hex,  # this is auction id
+            'status': 'complete',
+            'merchandisingObject': uuid4().hex,
+            'procurementMethodType': choice(['sellout.insider', 'sellout.english'])
+        })
+
+        lc.get_lot.side_effect = [ResourceNotFound]
+        convoy = Convoy(self.config)
+        loki_processing = convoy.auction_type_processing_configurator[auction_doc.procurementMethodType]
+        convoy.lots_client = loki_processing.lots_client = lc
+        loki_processing.report_results(auction_doc)
+        convoy.lots_client.get_lot.assert_called_with(
+            auction_doc.merchandisingObject
+        )
+
+        mock_logger.assert_called_with(
+            'Lot {} not found when report auction {} results'.format(
+                auction_doc.merchandisingObject, auction_doc.id
+            )
+        )
+
+    @mock.patch('logging.Logger.info')
+    @mock.patch('requests.Response.raise_for_status')
+    @mock.patch('requests.Session.request')
+    def test_report_result_loki_already_reported_auction(self, mock_raise, mock_request, mock_logger):
+
+        lc = mock.MagicMock()
+
+        auction_doc = Munch({
+            'id': uuid4().hex,  # this is auction id
+            'status': 'complete',
+            'merchandisingObject': uuid4().hex,
+            'procurementMethodType': choice(['sellout.insider', 'sellout.english'])
+        })
+
+        lot = munchify({
+            'data': {
+                'id': auction_doc.merchandisingObject,
+                'relatedProcessID': auction_doc.id,
+                'status': u'active.auction',
+                'auctions': [auction_doc]
+            }
+        })
+        lc.get_lot.return_value = lot
+        convoy = Convoy(self.config)
+        loki_processing = convoy.auction_type_processing_configurator[auction_doc.procurementMethodType]
+        convoy.lots_client = loki_processing.lots_client = lc
+        loki_processing.report_results(auction_doc)
+        convoy.lots_client.get_lot.assert_called_with(
+            auction_doc.merchandisingObject
+        )
+        mock_logger.assert_called_with(
+            'Auction {} results already reported to lot {}'.format(
+                auction_doc.id, auction_doc.merchandisingObject
+            )
         )
 
     @mock.patch('requests.Session.request')
