@@ -24,7 +24,14 @@
       token: "convoy"
       url: "http://0.0.0.0:6543"
       version: 0
-
+    loki:
+      aliases: [loki]
+      auctions:
+        swiftsure: [sellout.english, sellout.insider]
+    basic:
+      aliases: [basic]
+      auctions:
+       rubble: [rubble]
   assets:
     api:
       token: "convoy"
