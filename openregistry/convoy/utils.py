@@ -30,11 +30,25 @@ FILTER_DOC_ID = '_design/auction_filters'
 FILTER_CONVOY_FEED_DOC = """
 function(doc, req) {
     if (doc.doc_type == 'Auction') {
-        if (doc.status == 'pending.verification') {
-            return true;
-        } else if (['complete', 'cancelled', 'unsuccessful'].indexOf(doc.status) >= 0 && doc.merchandisingObject) {
-            return true;
+    
+        // basic lots auctions
+        if (%s.indexOf(doc.procurementMethodType >= 0) {
+    
+            if (doc.status == 'pending.verification') {
+                return true;
+            } else if (['complete', 'cancelled', 'unsuccessful'].indexOf(doc.status) >= 0 && doc.merchandisingObject) {
+                return true;
+            };
+            
+        // loki lots auctions
+        } else if (%s.indexOf(doc.procurementMethodType) >= 0) {
+        
+            if (['complete', 'cancelled', 'unsuccessful'].indexOf(doc.status) >= 0) {
+                return true;
+            };
+        
         };
+        
     }
     return false;
 }
@@ -55,20 +69,21 @@ def prepare_couchdb(couch_url, db_name):
         else:
             db = server[db_name]
 
-        push_filter_doc(db)
-
     except error as e:
         LOGGER.error('Database error: {}'.format(e.message))
         raise ConfigError(e.strerror)
     return db
 
 
-def push_filter_doc(db):
+def push_filter_doc(db, auctions_types):
+    filter_convoy_feed_doc = FILTER_CONVOY_FEED_DOC % (
+        auctions_types.get('basic', []), auctions_types.get('loki', [])
+    )
     filters_doc = db.get(FILTER_DOC_ID, {'_id': FILTER_DOC_ID, 'filters': {}})
     if (filters_doc and filters_doc['filters'].get('convoy_feed') !=
-        FILTER_CONVOY_FEED_DOC):
+            filter_convoy_feed_doc):
         filters_doc['filters']['convoy_feed'] = \
-            FILTER_CONVOY_FEED_DOC
+            filter_convoy_feed_doc
         db.save(filters_doc)
         LOGGER.info('Filter doc \'convoy_feed\' saved.')
     else:
@@ -88,7 +103,8 @@ def continuous_changes_feed(db, timeout=10, limit=100,
                 item = Munch({
                     'id': row['doc']['_id'],
                     'status': row['doc']['status'],
-                    'merchandisingObject': row['doc']['merchandisingObject']
+                    'merchandisingObject': row['doc']['merchandisingObject'],
+                    'procurementMethodType': row['doc']['procurementMethodType']
                 })
                 yield item
         else:
