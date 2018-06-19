@@ -57,7 +57,7 @@ class ProcessingLoki(object):
 
         lot_auction = None
         for lot_auction in lot.auctions:
-            if lot_auction['relatedProcessID'] == auction_doc.id:
+            if lot_auction.id == lot.relatedProcessID:
                 break
 
         if lot_auction['status'] != 'active':
