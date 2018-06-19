@@ -42,15 +42,15 @@ class TestUtilsSuite(unittest.TestCase):
         filter_doc = {
             '_id': FILTER_DOC_ID,
             'filters': {
-                'convoy_feed': FILTER_CONVOY_FEED_DOC
+                'convoy_feed': FILTER_CONVOY_FEED_DOC % ([], [])
             }
         }
-        push_filter_doc(db)
+        push_filter_doc(db, {})
         db.get.assert_called_once_with(
             FILTER_DOC_ID, {'_id': FILTER_DOC_ID, 'filters': {}})
         self.assertEqual(db.save.call_count, 0)
 
-        push_filter_doc(db)
+        push_filter_doc(db, {})
         self.assertEqual(db.get.call_count, 2)
         db.save.assert_called_once_with(filter_doc)
 
@@ -73,7 +73,8 @@ class TestUtilsSuite(unittest.TestCase):
                 {'doc': {
                          '_id': auction_id,
                          'status': 'pending.verifcation',
-                         'merchandisingObject': lot_id}}
+                         'merchandisingObject': lot_id,
+                         'procurementMethodType': 'rubble'}}
             ]},
             {'last_seq': 2, 'results': []}
         ]
@@ -86,7 +87,8 @@ class TestUtilsSuite(unittest.TestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0], {'merchandisingObject': lot_id,
                                       'id': auction_id,
-                                      'status': 'pending.verifcation'
+                                      'status': 'pending.verifcation',
+                                      'procurementMethodType': 'rubble'
                                       })
 
 
