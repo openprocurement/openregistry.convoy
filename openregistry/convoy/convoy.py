@@ -18,11 +18,7 @@ from openregistry.convoy.constants import DEFAULTS, DOCUMENT_KEYS, KEYS
 from openregistry.convoy.loki.processing import ProcessingLoki
 from openregistry.convoy.basic.processing import ProcessingBasic
 
-from pkg_resources import get_distribution
 
-
-# PKG = get_distribution(__package__)
-# LOGGER = logging.getLogger(PKG.project_name)
 LOGGER = logging.getLogger(__name__)
 
 

@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 import logging.config
 
+from retrying import retry
+
 from openprocurement_client.constants import DOCUMENTS
 from openprocurement_client.exceptions import (
     ResourceNotFound,
 )
 
+from openregistry.convoy.utils import retry_on_error, get_client_from_resource_type
 
 LOGGER = logging.getLogger('openregistry.convoy.convoy')
 
@@ -76,8 +79,7 @@ class ProcessingBasic(object):
             next_lot_status = 'active.salable'
 
         # Report results
-        self.lots_client.patch_resource_item(lot['id'], {'data': {'status': next_lot_status}})
-        LOGGER.info('Switch lot {} to ({}) status'.format(lot['id'], next_lot_status))
+        self.switch_lot_status(lot['id'], next_lot_status)
 
     def _receive_lot(self, auction_doc):
         lot_id = auction_doc.merchandisingObject
@@ -104,8 +106,7 @@ class ProcessingBasic(object):
             return
         elif lot.status == u'active.auction' and auction_doc.id == lot.auctions[-1]:
             # Switch auction
-            self.auctions_client.patch_resource_item(auction_doc['id'], {'data': {'status': 'active.tendering'}})
-            LOGGER.info('Switch auction {} to (active.tendering) status'.format(auction_doc['id']))
+            self.switch_auction_status(auction_doc['id'], 'active.tendering')
             return
         elif lot.status == u'active.awaiting' and auction_doc.id == lot.auctions[-1]:
             return lot
@@ -114,9 +115,10 @@ class ProcessingBasic(object):
         auctions_list = lot.get('auctions', [])
         auctions_list.append(auction_doc.id)
         lot_patch_data = {'data': {'status': 'active.awaiting', 'auctions': auctions_list}}
-        self.lots_client.patch_resource_item(lot.id, lot_patch_data)
-        LOGGER.info('Lock lot {}'.format(lot.id),
-                    extra={'MESSAGE_ID': 'lock_lot'})
+        self._patch_resource_item(
+            self.lots_client, lot.id, lot_patch_data,
+            'Lock lot {}'.format(lot.id), {'MESSAGE_ID': 'lock_lot'}
+        )
         return lot
 
     def _form_auction(self, lot, auction_doc):
@@ -124,8 +126,7 @@ class ProcessingBasic(object):
         items, documents = self._create_items_from_assets(lot.assets)
 
         if not items:
-            self.lots_client.patch_resource_item(lot.id, {'data': {'status': 'active.salable'}})
-            LOGGER.info('Switch lot {} status to active.salable'.format(lot.id))
+            self.switch_lot_status(lot.id, 'active.salable')
             self.invalidate_auction(auction_doc.id)
             return False
 
@@ -133,11 +134,11 @@ class ProcessingBasic(object):
         LOGGER.info('Received auction {} from CDB'.format(auction_doc['id']))
 
         # Add items to CDB
-        auction_patch_data = {'data': {'items': items, 'dgfID': lot.lotIdentifier}}
-        self.auctions_client.patch_resource_item(
-            api_auction_doc.id, auction_patch_data
+        patch_data = {'data': {'items': items, 'dgfID': lot.lotIdentifier}}
+        message = 'Auction: {} was formed from lot: {}'.format(auction_doc['id'], lot.id)
+        self._patch_resource_item(
+            self.auctions_client, api_auction_doc.id, patch_data, message
         )
-        LOGGER.info('Auction: {} was formed from lot: {}'.format(auction_doc['id'], lot.id))
 
         # Add documents to CDB
         for document in documents:
@@ -154,18 +155,19 @@ class ProcessingBasic(object):
 
     def _activate_auction(self, lot, auction_doc):
         # Switch lot
-        self.lots_client.patch_resource_item(lot['id'], {'data': {'status': 'active.auction'}})
-        LOGGER.info('Switch lot {} to (active.auction) status'.format(lot['id']))
+        self.switch_lot_status(lot['id'], 'active.auction')
 
         # Switch auction
-        self.auctions_client.patch_resource_item(auction_doc['id'], {'data': {'status': 'active.tendering'}})
-        LOGGER.info('Switch auction {} to (active.tendering) status'.format(auction_doc['id']))
+        self.switch_auction_status(auction_doc['id'], 'active.tendering')
 
     def invalidate_auction(self, auction_id):
-        self.auctions_client.patch_resource_item(
-            auction_id, {"data": {"status": "invalid"}}
-        )
-        LOGGER.info('Switch auction {} status to invalid'.format(auction_id))
+        self.switch_auction_status(auction_id, 'invalid')
+
+    def switch_auction_status(self, auction_id, status):
+        self._switch_resource_status('auction', auction_id, status)
+
+    def switch_lot_status(self, lot_id, status):
+        self._switch_resource_status('lot', lot_id, status)
 
     def _create_items_from_assets(self, assets_ids):
         items = []
@@ -218,3 +220,19 @@ class ProcessingBasic(object):
             item_document['relatedItem'] = item.id
             documents.append(item_document)
         return documents
+
+    def _switch_resource_status(self, resource_type, resource_id, status):
+        message = 'Switch {} {} status to {} '.format(resource_type, resource_id, status)
+        client = get_client_from_resource_type(self, resource_type)
+        patch_data = {'data': {'status': status}}
+
+        resource = self._patch_resource_item(
+            client, resource_id, patch_data, message
+        )
+        return resource
+
+    @retry(stop_max_attempt_number=5, retry_on_exception=retry_on_error, wait_fixed=2000)
+    def _patch_resource_item(self, client, resource_id, patch_data, message, extra=None):
+        resource = client.patch_resource_item(resource_id, patch_data)
+        LOGGER.info(message, extra=extra)
+        return resource

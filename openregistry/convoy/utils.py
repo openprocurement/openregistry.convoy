@@ -179,3 +179,17 @@ def retry_on_error(exception):
     ):
         return True
     return False
+
+
+def get_client_from_resource_type(processing, resource_type):
+    """
+    :param processing: processing object
+    :param resource_type: type of resource to get client for
+    :type processing: openregistry.convoy.basic.processing.ProcessingBasic
+    :type resource_type: str
+    :return: client for passed type of resource
+    :rtype: openprocurement_client.clients.APIResourceClient
+    """
+    client_name = '{}s_client'.format(resource_type)
+    client = getattr(processing, client_name)
+    return client
