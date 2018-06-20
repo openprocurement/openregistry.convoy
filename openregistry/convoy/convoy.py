@@ -2,6 +2,7 @@
 from gevent import monkey
 monkey.patch_all()
 
+import signal
 import logging
 import logging.config
 import os
@@ -22,6 +23,17 @@ from openregistry.convoy.basic.processing import ProcessingBasic
 LOGGER = logging.getLogger(__name__)
 
 
+class GracefulKiller(object):
+    kill_now = False
+
+    def __init__(self):
+        signal.signal(signal.SIGINT, self.exit_gracefully)
+        signal.signal(signal.SIGTERM, self.exit_gracefully)
+
+    def exit_gracefully(self,signum, frame):
+        self.kill_now = True
+
+
 class Convoy(object):
     """
         Convoy worker object.
@@ -33,6 +45,7 @@ class Convoy(object):
         self.auction_type_processing_configurator = {}
         self.auction_types_for_filter = {}
         self.convoy_conf = convoy_conf
+        self.killer = GracefulKiller()
 
         self.stop_transmitting = False
 
@@ -108,6 +121,9 @@ class Convoy(object):
                 continue
 
             self.auction_type_processing_configurator[auction['procurementMethodType']].process_auction(auction)
+
+            if self.killer.kill_now:
+                break
 
 
 def main():
