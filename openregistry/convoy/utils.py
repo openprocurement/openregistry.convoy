@@ -7,6 +7,14 @@ from couchdb import Server, Session
 from munch import Munch
 from pkg_resources import get_distribution
 
+from openprocurement_client.exceptions import (
+    Forbidden,
+    RequestFailed,
+    ResourceNotFound,
+    UnprocessableEntity,
+    Conflict,
+    PreconditionFailed,
+)
 from openprocurement_client.resources.assets import AssetsClient
 from openprocurement_client.resources.auctions import AuctionsClient
 from openprocurement_client.resources.lots import LotsClient
@@ -26,6 +34,7 @@ Logger.check = check
 PKG = get_distribution(__package__)
 LOGGER = getLogger(PKG.project_name)
 
+EXCEPTIONS = (Forbidden, RequestFailed, ResourceNotFound, UnprocessableEntity, PreconditionFailed, Conflict)
 FILTER_DOC_ID = '_design/auction_filters'
 FILTER_CONVOY_FEED_DOC = """
 function(doc, req) {
@@ -161,3 +170,12 @@ def init_clients(config):
         raise exceptions[0]
 
     return clients_from_config
+
+
+def retry_on_error(exception):
+    if isinstance(exception, EXCEPTIONS) and (
+            exception.status_code >= 500 or
+            exception.status_code in [409, 412, 429]
+    ):
+        return True
+    return False

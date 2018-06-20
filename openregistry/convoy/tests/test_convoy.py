@@ -502,6 +502,43 @@ class TestConvoySuite(unittest.TestCase):
             )
         )
 
+    @mock.patch('logging.Logger.warning')
+    @mock.patch('requests.Response.raise_for_status')
+    @mock.patch('requests.Session.request')
+    def test_report_result_loki_related_auction_not_found(self, mock_raise, mock_request, mock_logger):
+
+        lc = mock.MagicMock()
+
+        auction_doc = Munch({
+            'id': uuid4().hex,  # this is auction id
+            'status': 'complete',
+            'merchandisingObject': uuid4().hex,
+            'procurementMethodType': choice(['sellout.insider', 'sellout.english'])
+        })
+
+        invalid_id = uuid4().hex
+        lot = munchify({
+            'data': {
+                'id': auction_doc.merchandisingObject,
+                'relatedProcessID': invalid_id,
+                'status': u'active.auction',
+                'auctions': [auction_doc]
+            }
+        })
+        lc.get_lot.return_value = lot
+        convoy = Convoy(self.config)
+        loki_processing = convoy.auction_type_processing_configurator[auction_doc.procurementMethodType]
+        convoy.lots_client = loki_processing.lots_client = lc
+        loki_processing.report_results(auction_doc)
+        convoy.lots_client.get_lot.assert_called_with(
+            auction_doc.merchandisingObject
+        )
+        mock_logger.assert_called_with(
+                'Auction object {} not found in lot {}'.format(
+                    invalid_id, auction_doc.merchandisingObject
+                )
+            )
+
     @mock.patch('requests.Session.request')
     @mock.patch('openregistry.convoy.convoy.argparse.ArgumentParser',
                 MockedArgumentParser)
