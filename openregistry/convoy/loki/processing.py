@@ -86,6 +86,13 @@ class ProcessingLoki(object):
         return True
 
     def _get_lot(self, auction_doc):
+        if 'merchandisingObject' not in auction_doc:
+            LOGGER.warning(
+                'merchandisingObject {} is not provided in auction {}'.format(
+                    lot_id, auction_doc.id
+                )
+            )
+            return
         lot_id = auction_doc.merchandisingObject
         try:
             lot = self.lots_client.get_lot(lot_id).data

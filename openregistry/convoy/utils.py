@@ -52,7 +52,7 @@ function(doc, req) {
         // loki lots auctions
         } else if (%s.indexOf(doc.procurementMethodType) >= 0) {
         
-            if (['complete', 'cancelled', 'unsuccessful'].indexOf(doc.status) >= 0) {
+            if (['TODO_complete', 'cancelled', 'unsuccessful'].indexOf(doc.status) >= 0  && doc.merchandisingObject) {
                 return true;
             };
         
@@ -112,7 +112,7 @@ def continuous_changes_feed(db, timeout=10, limit=100,
                 item = Munch({
                     'id': row['doc']['_id'],
                     'status': row['doc']['status'],
-                    'merchandisingObject': row['doc']['merchandisingObject'],
+                    'merchandisingObject': row['doc'].get('merchandisingObject'),
                     'procurementMethodType': row['doc']['procurementMethodType']
                 })
                 yield item
