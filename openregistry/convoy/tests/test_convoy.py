@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 from gevent import monkey
+from openregistry.convoy.utils import make_contract
+
 monkey.patch_all()
 
 import unittest
@@ -394,9 +396,10 @@ class TestConvoySuite(unittest.TestCase):
             {'data': {'status': 'active.salable'}}
         )
 
+    @mock.patch('openregistry.convoy.loki.processing.make_contract')
     @mock.patch('requests.Response.raise_for_status')
     @mock.patch('requests.Session.request')
-    def test_report_result_loki_success(self, mock_raise, mock_request):
+    def test_report_result_loki_success(self, mock_raise, mock_request, mock_make_contract):
 
         terminal_loki_auction_statuses = ['complete', 'cancelled', 'unsuccessful']
         auction_docs = []
@@ -429,6 +432,7 @@ class TestConvoySuite(unittest.TestCase):
         for auction_doc in auction_docs:
             loki_processing = convoy.auction_type_processing_configurator[auction_doc.procurementMethodType]
             convoy.lots_client = loki_processing.lots_client = lc
+            loki_processing._post_contract = mock.MagicMock()
             loki_processing.report_results(auction_doc)
             convoy.lots_client.patch_resource_item_subitem.assert_called_with(
                 resource_item_id=auction_doc.merchandisingObject,
@@ -538,6 +542,55 @@ class TestConvoySuite(unittest.TestCase):
                     invalid_id, auction_doc.merchandisingObject
                 )
             )
+
+    @mock.patch('logging.Logger.info')
+    @mock.patch('requests.Response.raise_for_status')
+    @mock.patch('requests.Session.request')
+    def test_report_result_loki_contract_created(self, mock_raise, mock_request, mock_logger):
+
+        lc = mock.MagicMock()
+        cc = mock.MagicMock()
+        with open('{}/contract.json'.format(self.test_files_path), 'r') as cf:
+            contract_dict = munchify(json.loads(cf.read()))
+
+        auction_doc = Munch({
+            'id': uuid4().hex,  # this is auction id
+            'status': 'complete',
+            'merchandisingObject': uuid4().hex,
+            'procurementMethodType': choice(['sellout.insider', 'sellout.english']),
+            'contracts': [contract_dict]
+        })
+
+        lot = munchify({
+            'data': {
+                'id': auction_doc.merchandisingObject,
+                'relatedProcessID': auction_doc.id,
+                'status': u'active.auction',
+                'auctions': [munchify({"id": auction_doc.id,
+                                       "status": "active"})]
+            }
+        })
+
+        contract = munchify({'data': {'id': uuid4().hex}})
+        lc.get_lot.return_value = lot
+        cc.create_contract.return_value = contract
+        convoy = Convoy(self.config)
+        loki_processing = convoy.auction_type_processing_configurator[auction_doc.procurementMethodType]
+        convoy.lots_client = loki_processing.lots_client = lc
+        convoy.contracts_client = loki_processing.contracts_client = cc
+        loki_processing.report_results(auction_doc)
+        convoy.lots_client.get_lot.assert_called_with(
+            auction_doc.merchandisingObject
+        )
+        convoy.contracts_client.create_contract.assert_called_with(
+            {"data": make_contract(auction_doc)}
+        )
+
+        mock_logger.assert_called_with(
+            'Successfully created contract {} from lot {}'.format(
+                contract.data.id, auction_doc.merchandisingObject
+            )
+        )
 
     @mock.patch('requests.Session.request')
     @mock.patch('openregistry.convoy.convoy.argparse.ArgumentParser',

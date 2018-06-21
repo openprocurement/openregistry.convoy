@@ -1,0 +1,65 @@
+{
+   "title":"test title",
+   "description":"test description",
+   "status":"active",
+   "signingPeriod":{
+      "startDate":"2018-06-18T14:43:01.168656+03:00",
+      "endDate":"2018-06-24T14:43:01.168695+03:00"
+   },
+   "dateSigned":"2018-06-21T18:14:18.434950+03:00",
+   "documents": [],
+   "items":[
+      {
+         "description":"Земля для військовослужбовців",
+         "classification":{
+            "scheme":"CPV",
+            "description":"Земельні ділянки",
+            "id":"66113000-5"
+         },
+         "address":{
+            "postalCode":"79000",
+            "countryName":"Україна",
+            "streetAddress":"вул. Банкова 1",
+            "region":"м. Київ",
+            "locality":"м. Київ"
+         },
+         "id":"8a7c912baffc4aba817925b0ae31becc",
+         "unit":{
+            "code":"44617100-9",
+            "name":"item"
+         },
+         "quantity":"5"
+      }
+   ],
+   "suppliers":[
+      {
+         "contactPoint":{
+            "name":"Державне управління справами",
+            "telephone":"0440000000"
+         },
+         "identifier":{
+            "scheme":"UA-EDR",
+            "id":"00037256",
+            "uri":"http://www.dus.gov.ua/"
+         },
+         "name":"Державне управління справами",
+         "address":{
+            "postalCode":"01220",
+            "countryName":"Україна",
+            "streetAddress":"вул. Банкова, 11, корпус 1",
+            "region":"м. Київ",
+            "locality":"м. Київ"
+         }
+      }
+   ],
+   "value":{
+      "currency":"UAH",
+      "amount":479.0,
+      "valueAddedTaxIncluded":true
+   },
+   "date":"2018-06-21T14:43:01.083264+03:00",
+   "awardID":"5cc90d7a42664475b3f67e59ca3690cf",
+   "id":"044c73fb41e946b3853554b55feb933b",
+   "quantity":"5",
+   "contractID":"UA-EA-2018-06-21-000001-1"
+}
