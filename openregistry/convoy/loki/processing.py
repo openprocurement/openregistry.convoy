@@ -7,7 +7,8 @@ from openprocurement_client.exceptions import (
     ResourceNotFound,
 )
 
-from openregistry.convoy.utils import retry_on_error
+from openregistry.convoy.loki.constants import SUCCESSFUL_TERMINAL_STATUSES
+from openregistry.convoy.utils import retry_on_error, make_contract
 
 LOGGER = logging.getLogger('openregistry.convoy.convoy')
 
@@ -55,6 +56,10 @@ class ProcessingLoki(object):
             return
 
         self._switch_auction_status(auction_doc.status, lot.id, auction_doc.id)
+
+        if auction_doc.status in SUCCESSFUL_TERMINAL_STATUSES:
+            contract = make_contract(auction_doc)
+            self._post_contract({'data': contract}, lot.id)
 
     @retry(stop_max_attempt_number=5, retry_on_exception=retry_on_error, wait_fixed=2000)
     def _switch_auction_status(self, status, lot_id, auction_id):
@@ -106,3 +111,9 @@ class ProcessingLoki(object):
 
         LOGGER.info('Received lot {} from CDB'.format(lot_id))
         return lot
+
+    @retry(stop_max_attempt_number=5, retry_on_exception=retry_on_error, wait_fixed=2000)
+    def _post_contract(self, data, lot_id):
+        contract = self.contracts_client.create_contract(data)
+        LOGGER.info("Successfully created contract {} from lot {}".format(contract['data']['id'], lot_id))
+        return contract
