@@ -41,7 +41,7 @@ function(doc, req) {
     if (doc.doc_type == 'Auction') {
     
         // basic lots auctions
-        if (%s.indexOf(doc.procurementMethodType >= 0) {
+        if (%s.indexOf(doc.procurementMethodType) >= 0) {
     
             if (doc.status == 'pending.verification') {
                 return true;
