@@ -7,10 +7,12 @@ import json
 import mock
 import os
 from copy import deepcopy
+from random import choice
 from yaml import load
 from gevent.queue import Queue
 from munch import munchify, Munch
 from couchdb import Server, Session, Database
+from openprocurement_client.exceptions import ResourceNotFound
 from openprocurement_client.resources.assets import AssetsClient
 from openprocurement_client.resources.lots import LotsClient
 from openprocurement_client.clients import APIResourceClient
@@ -49,8 +51,8 @@ class TestConvoySuite(unittest.TestCase):
                                               'files/')
         with open('{}/convoy.yaml'.format(ROOT)) as config_file_obj:
             self.config = load(config_file_obj.read())
-        user = self.config['couchdb'].get('user', '')
-        password = self.config['couchdb'].get('password', '')
+        user = self.config['db'].get('name', '')
+        password = self.config['db'].get('password', '')
         if user and password:
             self.server = Server(
                 "http://{user}:{password}@{host}:{port}".format(
@@ -59,13 +61,13 @@ class TestConvoySuite(unittest.TestCase):
         else:
             self.server = Server(
                 "http://{host}:{port}".format(
-                    **self.config['couchdb']),
+                    **self.config['db']),
                 session=Session(retry_delays=range(10)))
-        if self.config['couchdb']['db'] not in self.server:
-            self.server.create(self.config['couchdb']['db'])
+        if self.config['db']['name'] not in self.server:
+            self.server.create(self.config['db']['name'])
 
     def tearDown(self):
-        del self.server[self.config['couchdb']['db']]
+        del self.server[self.config['db']['name']]
 
     @mock.patch('requests.Response.raise_for_status')
     @mock.patch('requests.Session.request')
@@ -76,11 +78,11 @@ class TestConvoySuite(unittest.TestCase):
                          self.config['transmitter_timeout'])
         self.assertEqual(convoy.timeout, self.config['timeout'])
         self.assertIsInstance(convoy.documents_transfer_queue, Queue)
-        self.assertIsInstance(convoy.api_client, APIResourceClient)
+        self.assertIsInstance(convoy.auctions_client, APIResourceClient)
         self.assertIsInstance(convoy.lots_client, LotsClient)
         self.assertIsInstance(convoy.assets_client, AssetsClient)
         self.assertIsInstance(convoy.db, Database)
-        self.assertEqual(convoy.db.name, self.config['couchdb']['db'])
+        self.assertEqual(convoy.db.name, self.config['db']['name'])
 
         convoy = Convoy(DEFAULTS)
         self.assertEqual(convoy.stop_transmitting, False)
@@ -88,11 +90,11 @@ class TestConvoySuite(unittest.TestCase):
                          DEFAULTS['transmitter_timeout'])
         self.assertEqual(convoy.timeout, DEFAULTS['timeout'])
         self.assertIsInstance(convoy.documents_transfer_queue, Queue)
-        self.assertIsInstance(convoy.api_client, APIResourceClient)
+        self.assertIsInstance(convoy.auctions_client, APIResourceClient)
         self.assertIsInstance(convoy.lots_client, LotsClient)
         self.assertIsInstance(convoy.assets_client, AssetsClient)
         self.assertIsInstance(convoy.db, Database)
-        self.assertEqual(convoy.db.name, DEFAULTS['couchdb']['db'])
+        self.assertEqual(convoy.db.name, DEFAULTS['db']['name'])
 
     def fake_response(self):
         return None
@@ -119,9 +121,10 @@ class TestConvoySuite(unittest.TestCase):
             munchify(register_response_dict)
         asset_ids = ['580d38b347134ac6b0ee3f04e34b9770']
         convoy = Convoy(self.config)
-        convoy.assets_client = mock_rc
-        convoy.api_client = mock_rc
-        items, documents = convoy._create_items_from_assets(asset_ids)
+        basic_processing = convoy.auction_type_processing_configurator['rubble']
+        convoy.assets_client = basic_processing.assets_client = mock_rc
+        convoy.auctions_client = basic_processing.auctions_client = mock_rc
+        items, documents = basic_processing._create_items_from_assets(asset_ids)
         self.assertEqual(convoy.documents_transfer_queue.qsize(), 2)
         transfer_item = convoy.documents_transfer_queue.get()
         self.assertEqual(transfer_item['get_url'],
@@ -144,7 +147,7 @@ class TestConvoySuite(unittest.TestCase):
         del asset_dict['data']['documents']
         del asset_dict['data']['items'][0]['documents']
         mock_rc.get_asset.return_value = munchify(asset_dict)
-        items, documents = convoy._create_items_from_assets(asset_ids)
+        items, documents = basic_processing._create_items_from_assets(asset_ids)
         self.assertEqual(len(items), 2)
         self.assertEqual(len(documents), 0)
         self.assertEqual(convoy.documents_transfer_queue.qsize(), 1)
@@ -172,12 +175,13 @@ class TestConvoySuite(unittest.TestCase):
                 'assets': ['580d38b347134ac6b0ee3f04e34b9770']
             }
         })
-        api_client = mock.MagicMock()
-        api_client.get_resource_item.return_value = munchify(api_auction_doc)
+        auctions_client = mock.MagicMock()
+        auctions_client.get_resource_item.return_value = munchify(api_auction_doc)
         convoy = Convoy(self.config)
-        convoy.api_client = api_client
-        convoy.lots_client = lc
-        auction_doc = convoy.prepare_auction(a_doc)
+        basic_processing = convoy.auction_type_processing_configurator['rubble']
+        convoy.auctions_client = basic_processing.auctions_client = auctions_client
+        convoy.lots_client = basic_processing.lots_client = lc
+        auction_doc = basic_processing.prepare_auction(a_doc)
         self.assertEqual(None, auction_doc)
         convoy.lots_client.get_lot.assert_called_with(
             a_doc['merchandisingObject'])
@@ -196,7 +200,7 @@ class TestConvoySuite(unittest.TestCase):
             munchify(register_response_dict)
         asset_ids = ['580d38b347134ac6b0ee3f04e34b9770']
 
-        convoy.assets_client = mock_rc
+        convoy.assets_client = basic_processing.assets_client = mock_rc
         lc.get_lot.return_value = munchify({
             'data': {
                 'id': a_doc['merchandisingObject'],
@@ -205,8 +209,8 @@ class TestConvoySuite(unittest.TestCase):
                 'assets': ['580d38b347134ac6b0ee3f04e34b9770']
             }
         })
-        items, documents = convoy._create_items_from_assets(asset_ids)
-        convoy._create_items_from_assets = mock.MagicMock(return_value=(
+        items, documents = basic_processing._create_items_from_assets(asset_ids)
+        basic_processing._create_items_from_assets = mock.MagicMock(return_value=(
             items, documents))
 
         # Needed to call mock function before prepare_auction, to
@@ -219,10 +223,10 @@ class TestConvoySuite(unittest.TestCase):
         # convoy.api_client.patch_resource_item(expected)
 
         # convoy.prepare_auction(a_doc)
-        lot = convoy._receive_lot(a_doc)
-        convoy._form_auction(lot, a_doc)
-        convoy.api_client.patch_resource_item.assert_called_with(a_doc['id'], expected)
-        convoy._activate_auction(lot, a_doc)
+        lot = basic_processing._receive_lot(a_doc)
+        basic_processing._form_auction(lot, a_doc)
+        convoy.auctions_client.patch_resource_item.assert_called_with(a_doc['id'], expected)
+        basic_processing._activate_auction(lot, a_doc)
         self.assertEqual(convoy.documents_transfer_queue.qsize(), 2)
         convoy.lots_client.get_lot.assert_called_with(
             a_doc['merchandisingObject'])
@@ -234,13 +238,13 @@ class TestConvoySuite(unittest.TestCase):
                 }
             }
         )
-        convoy._create_items_from_assets.assert_called_with(asset_ids)
+        basic_processing._create_items_from_assets.assert_called_with(asset_ids)
         patched_api_auction_doc = {'data': {'status': 'active.tendering'}}
-        convoy.api_client.get_resource_item.assert_called_with(a_doc['id'])
-        convoy.api_client.patch_resource_item.assert_called_with(
+        convoy.auctions_client.get_resource_item.assert_called_with(a_doc['id'])
+        convoy.auctions_client.patch_resource_item.assert_called_with(
             api_auction_doc['data']['id'],
             patched_api_auction_doc)
-        convoy.api_client.create_resource_item_subitem.assert_called_with(
+        convoy.auctions_client.create_resource_item_subitem.assert_called_with(
             a_doc['id'], {'data': documents[1]}, 'documents')
 
         # convoy.prepare_auction(a_doc) with active.awaiting lot
@@ -253,15 +257,15 @@ class TestConvoySuite(unittest.TestCase):
                 'auctions': [a_doc['id']]
             }
         })
-        items, documents = convoy._create_items_from_assets(asset_ids)
-        convoy._create_items_from_assets = mock.MagicMock(return_value=(
+        items, documents = basic_processing._create_items_from_assets(asset_ids)
+        basic_processing._create_items_from_assets = mock.MagicMock(return_value=(
             items, documents))
 
-        lot = convoy._receive_lot(a_doc)
+        lot = basic_processing._receive_lot(a_doc)
         self.assertEqual(len(lot.auctions), 1)
-        convoy._form_auction(lot, a_doc)
-        convoy.api_client.patch_resource_item.assert_called_with(a_doc['id'], expected)
-        convoy._activate_auction(lot, a_doc)
+        basic_processing._form_auction(lot, a_doc)
+        convoy.auctions_client.patch_resource_item.assert_called_with(a_doc['id'], expected)
+        basic_processing._activate_auction(lot, a_doc)
         self.assertEqual(convoy.documents_transfer_queue.qsize(), 2)
         convoy.lots_client.get_lot.assert_called_with(
             a_doc['merchandisingObject'])
@@ -273,12 +277,12 @@ class TestConvoySuite(unittest.TestCase):
                 }
             }
         )
-        convoy._create_items_from_assets.assert_called_with(asset_ids)
-        convoy.api_client.get_resource_item.assert_called_with(a_doc['id'])
-        convoy.api_client.patch_resource_item.assert_called_with(
+        basic_processing._create_items_from_assets.assert_called_with(asset_ids)
+        convoy.auctions_client.get_resource_item.assert_called_with(a_doc['id'])
+        convoy.auctions_client.patch_resource_item.assert_called_with(
             api_auction_doc['data']['id'],
             patched_api_auction_doc)
-        convoy.api_client.create_resource_item_subitem.assert_called_with(
+        convoy.auctions_client.create_resource_item_subitem.assert_called_with(
             a_doc['id'], {'data': documents[1]}, 'documents')
 
         # convoy.prepare_auction(a_doc) with active.auction lot
@@ -291,9 +295,9 @@ class TestConvoySuite(unittest.TestCase):
                 'auctions': [a_doc['id']]
             }
         })
-        convoy._receive_lot(a_doc)
+        basic_processing._receive_lot(a_doc)
         patched_api_auction_doc = {'data': {'status': 'active.tendering'}}
-        convoy.api_client.patch_resource_item.assert_called_with(
+        convoy.auctions_client.patch_resource_item.assert_called_with(
             api_auction_doc['data']['id'],
             patched_api_auction_doc)
 
@@ -306,8 +310,8 @@ class TestConvoySuite(unittest.TestCase):
                 'get_url': 'http://fs.com/item_{}'.format(i),
                 'upload_url': 'http://fex.com/item_{}'.format(i)
             })
-        convoy.api_client = mock.MagicMock()
-        convoy.api_client.get_file.side_effect = [
+        convoy.auctions_client = mock.MagicMock()
+        convoy.auctions_client.get_file.side_effect = [
             ('this is a file content', 'filename'),
             Exception('Something went wrong.'),
             ('this is a file content', 'filename')]
@@ -317,9 +321,9 @@ class TestConvoySuite(unittest.TestCase):
         self.assertEqual(convoy.documents_transfer_queue.qsize(), 2)
         convoy.file_bridge()
         self.assertEqual(convoy.documents_transfer_queue.qsize(), 0)
-        self.assertEqual(convoy.api_client.get_file.call_count, 3)
+        self.assertEqual(convoy.auctions_client.get_file.call_count, 3)
         self.assertEqual(
-            convoy.api_client.ds_client.document_upload_not_register.
+            convoy.auctions_client.ds_client.document_upload_not_register.
             call_count, 2)
 
     @mock.patch('requests.Session.request')
@@ -327,12 +331,22 @@ class TestConvoySuite(unittest.TestCase):
     @mock.patch('openregistry.convoy.convoy.spawn')
     @mock.patch('openregistry.convoy.convoy.continuous_changes_feed')
     def test_run(self, mock_changes, mock_spawn, mock_raise, mock_request):
+
         mock_changes.return_value = [
-            munchify({'status': 'pending.verification', 'id': uuid4().hex, 'merchandisingObject': uuid4().hex}),
-            munchify({'status': 'pending.verification', 'id': uuid4().hex, 'merchandisingObject': uuid4().hex})
+            munchify({'status': 'pending.verification',
+                      'id': uuid4().hex,
+                      'merchandisingObject': uuid4().hex,
+                      'procurementMethodType': 'rubble'}),
+            munchify({'status': 'pending.verification',
+                      'id': uuid4().hex,
+                      'merchandisingObject': uuid4().hex,
+                      'procurementMethodType': 'rubble'})
         ]
+
         convoy = Convoy(self.config)
-        convoy.prepare_auction = mock.MagicMock(side_effect=[
+        basic_processing = convoy.auction_type_processing_configurator['rubble']
+
+        basic_processing.prepare_auction = mock.MagicMock(side_effect=[
             None, {'data': {'id': mock_changes.return_value[1]['id'],
                             'status': 'pending.verification'}}])
         convoy.run()
@@ -343,11 +357,11 @@ class TestConvoySuite(unittest.TestCase):
             }
         }
         mock_spawn.assert_called_with(convoy.file_bridge)
-        self.assertEqual(convoy.prepare_auction.call_count, 2)
+        self.assertEqual(basic_processing.prepare_auction.call_count, 2)
 
     @mock.patch('requests.Response.raise_for_status')
     @mock.patch('requests.Session.request')
-    def test_report_result(self, mock_raise, mock_request):
+    def test_report_result_basic(self, mock_raise, mock_request):
         auction_doc = Munch({
             'id': uuid4().hex,  # this is auction id
             'status': 'complete',
@@ -364,20 +378,166 @@ class TestConvoySuite(unittest.TestCase):
         })
         lc.get_lot.return_value = lot
         convoy = Convoy(self.config)
-        convoy.lots_client = lc
-        convoy.assets_client = mock.MagicMock()
-        convoy.report_results(auction_doc)
+        basic_processing = convoy.auction_type_processing_configurator['rubble']
+        convoy.lots_client = basic_processing.lots_client = lc
+        convoy.assets_client = basic_processing.assets_client = mock.MagicMock()
+        basic_processing.report_results(auction_doc)
         convoy.lots_client.patch_resource_item.assert_called_with(
             auction_doc.merchandisingObject,
             {'data': {'status': 'pending.sold'}}
         )
 
         auction_doc.status = 'pending.verification'
-        convoy.report_results(auction_doc)
+        basic_processing.report_results(auction_doc)
         convoy.lots_client.patch_resource_item.assert_called_with(
             auction_doc.merchandisingObject,
             {'data': {'status': 'active.salable'}}
         )
+
+    @mock.patch('requests.Response.raise_for_status')
+    @mock.patch('requests.Session.request')
+    def test_report_result_loki_success(self, mock_raise, mock_request):
+
+        terminal_loki_auction_statuses = ['complete', 'cancelled', 'unsuccessful']
+        auction_docs = []
+        lots = []
+        lc = mock.MagicMock()
+
+        for status in terminal_loki_auction_statuses:
+            auction_docs.append(Munch({
+                'id': uuid4().hex,  # this is auction id
+                'status': status,
+                'merchandisingObject': uuid4().hex,
+                'procurementMethodType': choice(['sellout.insider', 'sellout.english'])
+            }))
+
+        lot_auctions = deepcopy(auction_docs)
+        for auction in lot_auctions:
+            auction.status = 'active'
+
+        for auction_doc in auction_docs:
+            lots.append(munchify({
+                'data': {
+                    'id': auction_doc.merchandisingObject,
+                    'relatedProcessID': auction_doc.id,
+                    'status': u'active.auction',
+                    'auctions': lot_auctions
+                }
+            }))
+        lc.get_lot.side_effect = lots
+        convoy = Convoy(self.config)
+        for auction_doc in auction_docs:
+            loki_processing = convoy.auction_type_processing_configurator[auction_doc.procurementMethodType]
+            convoy.lots_client = loki_processing.lots_client = lc
+            loki_processing.report_results(auction_doc)
+            convoy.lots_client.patch_resource_item_subitem.assert_called_with(
+                resource_item_id=auction_doc.merchandisingObject,
+                patch_data={'data': {'status': auction_doc.status}},
+                subitem_name='auctions',
+                subitem_id=auction_doc.id
+            )
+
+    @mock.patch('logging.Logger.warning')
+    @mock.patch('requests.Response.raise_for_status')
+    @mock.patch('requests.Session.request')
+    def test_report_result_loki_not_found(self, mock_raise, mock_request, mock_logger):
+
+        lc = mock.MagicMock()
+
+        auction_doc = Munch({
+            'id': uuid4().hex,  # this is auction id
+            'status': 'complete',
+            'merchandisingObject': uuid4().hex,
+            'procurementMethodType': choice(['sellout.insider', 'sellout.english'])
+        })
+
+        lc.get_lot.side_effect = [ResourceNotFound]
+        convoy = Convoy(self.config)
+        loki_processing = convoy.auction_type_processing_configurator[auction_doc.procurementMethodType]
+        convoy.lots_client = loki_processing.lots_client = lc
+        loki_processing.report_results(auction_doc)
+        convoy.lots_client.get_lot.assert_called_with(
+            auction_doc.merchandisingObject
+        )
+
+        mock_logger.assert_called_with(
+            'Lot {} not found when report auction {} results'.format(
+                auction_doc.merchandisingObject, auction_doc.id
+            )
+        )
+
+    @mock.patch('logging.Logger.info')
+    @mock.patch('requests.Response.raise_for_status')
+    @mock.patch('requests.Session.request')
+    def test_report_result_loki_already_reported_auction(self, mock_raise, mock_request, mock_logger):
+
+        lc = mock.MagicMock()
+
+        auction_doc = Munch({
+            'id': uuid4().hex,  # this is auction id
+            'status': 'complete',
+            'merchandisingObject': uuid4().hex,
+            'procurementMethodType': choice(['sellout.insider', 'sellout.english'])
+        })
+
+        lot = munchify({
+            'data': {
+                'id': auction_doc.merchandisingObject,
+                'relatedProcessID': auction_doc.id,
+                'status': u'active.auction',
+                'auctions': [auction_doc]
+            }
+        })
+        lc.get_lot.return_value = lot
+        convoy = Convoy(self.config)
+        loki_processing = convoy.auction_type_processing_configurator[auction_doc.procurementMethodType]
+        convoy.lots_client = loki_processing.lots_client = lc
+        loki_processing.report_results(auction_doc)
+        convoy.lots_client.get_lot.assert_called_with(
+            auction_doc.merchandisingObject
+        )
+        mock_logger.assert_called_with(
+            'Auction {} results already reported to lot {}'.format(
+                auction_doc.id, auction_doc.merchandisingObject
+            )
+        )
+
+    @mock.patch('logging.Logger.warning')
+    @mock.patch('requests.Response.raise_for_status')
+    @mock.patch('requests.Session.request')
+    def test_report_result_loki_related_auction_not_found(self, mock_raise, mock_request, mock_logger):
+
+        lc = mock.MagicMock()
+
+        auction_doc = Munch({
+            'id': uuid4().hex,  # this is auction id
+            'status': 'complete',
+            'merchandisingObject': uuid4().hex,
+            'procurementMethodType': choice(['sellout.insider', 'sellout.english'])
+        })
+
+        invalid_id = uuid4().hex
+        lot = munchify({
+            'data': {
+                'id': auction_doc.merchandisingObject,
+                'relatedProcessID': invalid_id,
+                'status': u'active.auction',
+                'auctions': [auction_doc]
+            }
+        })
+        lc.get_lot.return_value = lot
+        convoy = Convoy(self.config)
+        loki_processing = convoy.auction_type_processing_configurator[auction_doc.procurementMethodType]
+        convoy.lots_client = loki_processing.lots_client = lc
+        loki_processing.report_results(auction_doc)
+        convoy.lots_client.get_lot.assert_called_with(
+            auction_doc.merchandisingObject
+        )
+        mock_logger.assert_called_with(
+                'Auction object {} not found in lot {}'.format(
+                    invalid_id, auction_doc.merchandisingObject
+                )
+            )
 
     @mock.patch('requests.Session.request')
     @mock.patch('openregistry.convoy.convoy.argparse.ArgumentParser',

@@ -1,35 +1,37 @@
 DEFAULTS = {
     "timeout": 10,
     "transmitter_timeout": 15,
-    "couchdb": {
-        "user": "",
+    "db": {
+        "login": "",
         "password": "",
         "host": "127.0.0.1",
         "port": "5984",
-        "db": "ea_auctions",
+        "name": "ea_auctions",
     },
-    "cdb_ds": {
-        "host_url": "http://docs-sandbox.ea.openprocurement.org",
-        "auth_ds": ["", ""]
+    "auctions": {
+        "api": {
+            "token": "convoy",
+            "url": "http://127.0.0.1:6543",
+            "version": 0
+        },
+        "ds": {
+            "host_url": "http://docs-sandbox.ea.openprocurement.org",
+            "auth_ds": ["", ""]
+        }
     },
-    "cdb": {
-        "key": "",
-        "host_url": "http://127.0.0.1:6543",
-        "api_version": 0,
-        "user_agent": "auctions_convoy",
-        "resource": "auctions"
+    "lots": {
+        "api": {
+            "token": "convoy",
+            "url": "http://0.0.0.0:6543",
+            "version": 0
+        }
     },
-    "lots_db": {
-        "key": "convoy",
-        "host_url": "http://0.0.0.0:6543",
-        "api_version": 0,
-        "user_agent": "lots_convoy"
-    },
-    "assets_db": {
-        "key": "convoy",
-        "host_url": "http://0.0.0.0:6543",
-        "api_version": 0,
-        "user_agent": "assets_convoy"
+    "assets": {
+        "api": {
+            "token": "convoy",
+            "url": "http://0.0.0.0:6543",
+            "version": 0
+        }
     },
     "version": 1,
     "formatters": {

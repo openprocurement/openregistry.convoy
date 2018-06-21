@@ -1,32 +1,42 @@
 ---
   timeout: 5
+  version: 1
   transmitter_timeout: 5
-  couchdb:
-    user: ""
-    password: ""
+
+  db:
     host: "127.0.0.1"
+    name: "ea_auctions"
     port: "5984"
-    db: "ea_auctions"
-  cdb:
-    key: "api_key"
-    host_url: "https://lb.api-sandbox.ea.openprocurement.org"
-    api_version: "0"
-    resource: "auctions"
-    user_agent: "convoy"
-    ds_config:
+    login: ""
+    password: ""
+
+  auctions:
+    api:
+      token: "convoy"
+      url: "http://0.0.0.0:6543"
+      version: 0
+    ds:
       host_url: "http://docs-sandbox.ea.openprocurement.org"
       auth_ds: ["login", "password"]
-  lots_db:
-    key: "lots_api_key"
-    host_url: "https://lb.api-sandbox.registry.ea.openprocurement.net"
-    api_version: "0"
-    user_agent: "lots_convoy"
-  assets_db:
-    key: "api_key"
-    host_url: "https://lb.api-sandbox.registry.ea.openprocurement.net"
-    api_version: "0"
-    user_agent: "assets_convoy"
-  version: 1
+
+  lots:
+    api:
+      token: "convoy"
+      url: "http://0.0.0.0:6543"
+      version: 0
+    loki:
+      aliases: [loki]
+      auctions:
+        swiftsure: [sellout.english, sellout.insider]
+    basic:
+      aliases: [basic]
+      auctions:
+       rubble: [rubble]
+  assets:
+    api:
+      token: "convoy"
+      url: "http://0.0.0.0:6543"
+      version: 0
 
   formatters:
     simple:
