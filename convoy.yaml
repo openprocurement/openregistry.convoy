@@ -37,6 +37,11 @@
       token: "convoy"
       url: "http://0.0.0.0:6543"
       version: 0
+  contracts:
+    api:
+      token: "convoy"
+      url: "http://0.0.0.0:6543"
+      version: 0
 
   formatters:
     simple:

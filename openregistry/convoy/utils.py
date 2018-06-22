@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from logging import getLogger, addLevelName, Logger
 from socket import error
+
 from time import sleep
 
 from couchdb import Server, Session
@@ -18,6 +19,13 @@ from openprocurement_client.exceptions import (
 from openprocurement_client.resources.assets import AssetsClient
 from openprocurement_client.resources.auctions import AuctionsClient
 from openprocurement_client.resources.lots import LotsClient
+from openprocurement_client.resources.contracts import ContractingClient
+
+from openregistry.convoy.loki.constants import (
+    CONTRACT_TYPE,
+    CONTRACT_REQUIRED_FIELDS,
+    CONTRACT_NOT_REQUIRED_FIELDS,
+)
 
 
 addLevelName(25, 'CHECK')
@@ -125,6 +133,7 @@ def init_clients(config):
         'auctions_client': {'section': 'auctions', 'client_instance': AuctionsClient},
         'lots_client': {'section': 'lots', 'client_instance': LotsClient},
         'assets_client': {'section': 'assets', 'client_instance': AssetsClient},
+        'contracts_client': {'section': 'contracts', 'client_instance': ContractingClient},
     }
     exceptions = []
 
@@ -193,3 +202,21 @@ def get_client_from_resource_type(processing, resource_type):
     client_name = '{}s_client'.format(resource_type)
     client = getattr(processing, client_name)
     return client
+
+
+def make_contract(auction):
+    contract = auction.contracts[-1]
+    contract_object = {
+        'merchandisingObject': auction.merchandisingObject,
+        'contractType': CONTRACT_TYPE
+    }
+
+    for key in CONTRACT_REQUIRED_FIELDS:
+        contract_object[key] = getattr(contract, key)
+
+    for key in CONTRACT_NOT_REQUIRED_FIELDS:
+        value = getattr(contract, key, None)
+        if value:
+            contract_object[key] = value
+
+    return contract_object
