@@ -58,8 +58,9 @@ class ProcessingLoki(object):
         self._switch_auction_status(auction_doc.status, lot.id, auction_doc.id)
 
         if auction_doc.status in SUCCESSFUL_TERMINAL_STATUSES:
-            contract = make_contract(auction_doc)
-            self._post_contract({'data': contract}, lot.id)
+            contract_data = make_contract(auction_doc)
+            contract = self._post_contract({'data': contract_data}, lot.id)
+            self.update_lot_contract(lot, contract)
 
     @retry(stop_max_attempt_number=5, retry_on_exception=retry_on_error, wait_fixed=2000)
     def _switch_auction_status(self, status, lot_id, auction_id):
@@ -72,6 +73,16 @@ class ProcessingLoki(object):
         LOGGER.info('Switch lot\'s {} auction {} to ({}) status'.format(
             lot_id, auction_id, status)
         )
+
+    @retry(stop_max_attempt_number=5, retry_on_exception=retry_on_error, wait_fixed=2000)
+    def _patch_lot_contract(self, contract_data, lot_id, contract_id):
+        self.lots_client.patch_resource_item_subitem(
+            resource_item_id=lot_id,
+            patch_data={'data': contract_data},
+            subitem_name='contracts',
+            subitem_id=contract_id
+        )
+        LOGGER.info('Update lot\'s {} contract data'.format(lot_id))
 
     def _check_lot_auction(self, lot, auction_doc):
         lot_auction = next((auction for auction in lot.auctions
@@ -114,6 +125,14 @@ class ProcessingLoki(object):
 
     @retry(stop_max_attempt_number=5, retry_on_exception=retry_on_error, wait_fixed=2000)
     def _post_contract(self, data, lot_id):
-        contract = self.contracts_client.create_contract(data)
-        LOGGER.info("Successfully created contract {} from lot {}".format(contract['data']['id'], lot_id))
+        contract = self.contracts_client.create_contract(data).data
+        LOGGER.info("Successfully created contract {} from lot {}".format(contract.id, lot_id))
         return contract
+
+    def update_lot_contract(self, lot, contract):
+        contract_id = lot.contracts[0].id
+        contract_data = {
+            'contractID': contract.contractID,
+            'relatedProcessID': contract.id,
+        }
+        self._patch_lot_contract(contract_data, lot.id, contract_id)
