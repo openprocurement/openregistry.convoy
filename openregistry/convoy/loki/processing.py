@@ -138,5 +138,6 @@ class ProcessingLoki(object):
         contract_data = {
             'contractID': contract.contractID,
             'relatedProcessID': contract.id,
+            'status': 'active',
         }
         self._patch_lot_contract(contract_data, lot.id, contract_id)
