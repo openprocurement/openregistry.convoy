@@ -599,7 +599,8 @@ class TestConvoySuite(unittest.TestCase):
         lc.patch_resource_item_subitem.assert_called_with(
             resource_item_id=lot.data.id,
             patch_data={'data': {'relatedProcessID': contract.data.id,
-                                 'contractID': contract.data.contractID}},
+                                 'contractID': contract.data.contractID,
+                                 'status': 'active'}},
             subitem_name='contracts',
             subitem_id=lot.data.contracts[0].id
         )
