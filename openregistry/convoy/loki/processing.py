@@ -7,7 +7,9 @@ from openprocurement_client.exceptions import (
     ResourceNotFound,
 )
 
-from openregistry.convoy.loki.constants import SUCCESSFUL_TERMINAL_STATUSES
+from openregistry.convoy.loki.constants import (
+    SUCCESSFUL_TERMINAL_STATUSES, UNSUCCESSFUL_TERMINAL_STATUSES
+)
 from openregistry.convoy.utils import retry_on_error, make_contract
 
 LOGGER = logging.getLogger('openregistry.convoy.convoy')
@@ -55,11 +57,13 @@ class ProcessingLoki(object):
         if not lot_auction_is_available:
             return
 
-        self._switch_auction_status(auction_doc.status, lot.id, auction_doc.id)
+        if auction_doc.status in UNSUCCESSFUL_TERMINAL_STATUSES:
+            self._switch_auction_status(auction_doc.status, lot.id, auction_doc.id)
 
-        if auction_doc.status in SUCCESSFUL_TERMINAL_STATUSES:
+        elif auction_doc.status in SUCCESSFUL_TERMINAL_STATUSES:
             contract_data = make_contract(auction_doc)
             contract = self._post_contract({'data': contract_data}, lot.id)
+            self._switch_auction_status(auction_doc.status, lot.id, auction_doc.id)
             self.update_lot_contract(lot, contract)
 
     @retry(stop_max_attempt_number=5, retry_on_exception=retry_on_error, wait_fixed=2000)
