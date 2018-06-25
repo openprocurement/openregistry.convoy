@@ -433,6 +433,7 @@ class TestConvoySuite(unittest.TestCase):
             loki_processing = convoy.auction_type_processing_configurator[auction_doc.procurementMethodType]
             convoy.lots_client = loki_processing.lots_client = lc
             loki_processing._post_contract = mock.MagicMock()
+            loki_processing.update_lot_contract = mock.MagicMock()
             loki_processing.report_results(auction_doc)
             convoy.lots_client.patch_resource_item_subitem.assert_called_with(
                 resource_item_id=auction_doc.merchandisingObject,
@@ -567,11 +568,15 @@ class TestConvoySuite(unittest.TestCase):
                 'relatedProcessID': auction_doc.id,
                 'status': u'active.auction',
                 'auctions': [munchify({"id": auction_doc.id,
-                                       "status": "active"})]
+                                       "status": "active"})],
+                'contracts': [munchify({'id': uuid4().hex})]
             }
         })
 
-        contract = munchify({'data': {'id': uuid4().hex}})
+        contract = munchify({'data': {
+            'id': uuid4().hex,
+            'contractID': 'contract_id'
+        }})
         lc.get_lot.return_value = lot
         cc.create_contract.return_value = contract
         convoy = Convoy(self.config)
@@ -585,11 +590,22 @@ class TestConvoySuite(unittest.TestCase):
         convoy.contracts_client.create_contract.assert_called_with(
             {"data": make_contract(auction_doc)}
         )
-
-        mock_logger.assert_called_with(
+        mock_logger.assert_any_call(
             'Successfully created contract {} from lot {}'.format(
                 contract.data.id, auction_doc.merchandisingObject
             )
+        )
+
+        lc.patch_resource_item_subitem.assert_called_with(
+            resource_item_id=lot.data.id,
+            patch_data={'data': {'relatedProcessID': contract.data.id,
+                                 'contractID': contract.data.contractID}},
+            subitem_name='contracts',
+            subitem_id=lot.data.contracts[0].id
+        )
+
+        mock_logger.assert_any_call(
+            'Update lot\'s {} contract data'.format(lot.data.id)
         )
 
     @mock.patch('requests.Session.request')
