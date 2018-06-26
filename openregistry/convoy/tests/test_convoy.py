@@ -414,15 +414,18 @@ class TestConvoySuite(unittest.TestCase):
                 'procurementMethodType': choice(['sellout.insider', 'sellout.english'])
             }))
 
-        lot_auctions = deepcopy(auction_docs)
-        for auction in lot_auctions:
-            auction.status = 'active'
+        lot_auctions = []
+        for auction in auction_docs:
+            lot_auctions.append(Munch({
+                'id': uuid4().hex,
+                'status': 'active',
+                'relatedProcessID': auction.id
+            }))
 
         for auction_doc in auction_docs:
             lots.append(munchify({
                 'data': {
                     'id': auction_doc.merchandisingObject,
-                    'relatedProcessID': auction_doc.id,
                     'status': u'active.auction',
                     'auctions': lot_auctions
                 }
@@ -439,7 +442,8 @@ class TestConvoySuite(unittest.TestCase):
                 resource_item_id=auction_doc.merchandisingObject,
                 patch_data={'data': {'status': auction_doc.status}},
                 subitem_name='auctions',
-                subitem_id=auction_doc.id
+                subitem_id=next(auction.id for auction in lot_auctions
+                                if auction_doc.id == auction.relatedProcessID)
             )
 
     @mock.patch('logging.Logger.warning')
@@ -485,12 +489,17 @@ class TestConvoySuite(unittest.TestCase):
             'procurementMethodType': choice(['sellout.insider', 'sellout.english'])
         })
 
+        lot_auction = Munch({
+            'id': uuid4().hex,
+            'status': 'complete',  # not 'active' status
+            'relatedProcessID': auction_doc.id  # this is auction id
+        })
+
         lot = munchify({
             'data': {
                 'id': auction_doc.merchandisingObject,
-                'relatedProcessID': auction_doc.id,
-                'status': u'active.auction',
-                'auctions': [auction_doc]
+                'status': 'active.auction',
+                'auctions': [lot_auction]
             }
         })
         lc.get_lot.return_value = lot
@@ -522,12 +531,18 @@ class TestConvoySuite(unittest.TestCase):
         })
 
         invalid_id = uuid4().hex
+
+        lot_auction = Munch({
+            'id': uuid4().hex,
+            'status': 'active',
+            'relatedProcessID': invalid_id  # this is (invalid) auction id
+        })
+
         lot = munchify({
             'data': {
                 'id': auction_doc.merchandisingObject,
-                'relatedProcessID': invalid_id,
                 'status': u'active.auction',
-                'auctions': [auction_doc]
+                'auctions': [lot_auction]
             }
         })
         lc.get_lot.return_value = lot
@@ -540,7 +555,7 @@ class TestConvoySuite(unittest.TestCase):
         )
         mock_logger.assert_called_with(
                 'Auction object {} not found in lot {}'.format(
-                    invalid_id, auction_doc.merchandisingObject
+                    auction_doc.id, auction_doc.merchandisingObject
                 )
             )
 
@@ -567,7 +582,8 @@ class TestConvoySuite(unittest.TestCase):
                 'id': auction_doc.merchandisingObject,
                 'relatedProcessID': auction_doc.id,
                 'status': u'active.auction',
-                'auctions': [munchify({"id": auction_doc.id,
+                'auctions': [munchify({"relatedProcessID": auction_doc.id,
+                                       "id": uuid4().hex,
                                        "status": "active"})],
                 'contracts': [munchify({'id': uuid4().hex})]
             }

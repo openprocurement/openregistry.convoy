@@ -74,7 +74,8 @@ class TestUtilsSuite(unittest.TestCase):
                          '_id': auction_id,
                          'status': 'pending.verifcation',
                          'merchandisingObject': lot_id,
-                         'procurementMethodType': 'rubble'}}
+                         'procurementMethodType': 'rubble',
+                         'contracts': [{'status': 'cancelled'}]}}
             ]},
             {'last_seq': 2, 'results': []}
         ]
@@ -88,7 +89,8 @@ class TestUtilsSuite(unittest.TestCase):
         self.assertEqual(results[0], {'merchandisingObject': lot_id,
                                       'id': auction_id,
                                       'status': 'pending.verifcation',
-                                      'procurementMethodType': 'rubble'
+                                      'procurementMethodType': 'rubble',
+                                      'contracts': [{'status': 'cancelled'}]
                                       })
 
 
