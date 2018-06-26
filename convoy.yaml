@@ -5,7 +5,7 @@
 
   db:
     host: "127.0.0.1"
-    name: "ea_auctions"
+    name: "openprocurement"
     port: "5984"
     login: ""
     password: ""
@@ -14,7 +14,7 @@
     api:
       token: "convoy"
       url: "http://0.0.0.0:6543"
-      version: 0
+      version: 2.3
     ds:
       host_url: "http://docs-sandbox.ea.openprocurement.org"
       auth_ds: ["login", "password"]
@@ -23,7 +23,7 @@
     api:
       token: "convoy"
       url: "http://0.0.0.0:6543"
-      version: 0
+      version: 2.3
     loki:
       aliases: [loki]
       auctions:
@@ -36,12 +36,12 @@
     api:
       token: "convoy"
       url: "http://0.0.0.0:6543"
-      version: 0
+      version: 2.3
   contracts:
     api:
       token: "convoy"
       url: "http://0.0.0.0:6543"
-      version: 0
+      version: 2.3
 
   formatters:
     simple:

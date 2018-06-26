@@ -121,7 +121,8 @@ def continuous_changes_feed(db, timeout=10, limit=100,
                     'id': row['doc']['_id'],
                     'status': row['doc']['status'],
                     'merchandisingObject': row['doc'].get('merchandisingObject'),
-                    'procurementMethodType': row['doc']['procurementMethodType']
+                    'procurementMethodType': row['doc']['procurementMethodType'],
+                    'contracts': row['doc']['contracts'],
                 })
                 yield item
         else:
@@ -212,10 +213,10 @@ def make_contract(auction):
     }
 
     for key in CONTRACT_REQUIRED_FIELDS:
-        contract_object[key] = getattr(contract, key)
+        contract_object[key] = contract.get(key)
 
     for key in CONTRACT_NOT_REQUIRED_FIELDS:
-        value = getattr(contract, key, None)
+        value = contract.get(key, None)
         if value:
             contract_object[key] = value
 
