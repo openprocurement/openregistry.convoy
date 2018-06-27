@@ -83,7 +83,7 @@ class TestUtilsSuite(unittest.TestCase):
                 'openregistry.convoy.utils.CONTINUOUS_CHANGES_FEED_FLAG',
                 AlmostAlwaysTrue(2)):
             results = []
-            for r in continuous_changes_feed(db, timeout=0.1):
+            for r in continuous_changes_feed(db, mock.MagicMock(), timeout=0.1):
                 results.append(r)
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0], {'merchandisingObject': lot_id,

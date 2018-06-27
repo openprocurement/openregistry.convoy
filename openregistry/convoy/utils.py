@@ -108,7 +108,7 @@ def push_filter_doc(db, auctions_types):
     LOGGER.info('Added filters doc to db.')
 
 
-def continuous_changes_feed(db, timeout=10, limit=100,
+def continuous_changes_feed(db, killer, timeout=10, limit=100,
                             filter_doc='auction_filters/convoy_feed'):
     last_seq_id = 0
     while CONTINUOUS_CHANGES_FEED_FLAG:
@@ -125,7 +125,12 @@ def continuous_changes_feed(db, timeout=10, limit=100,
                     'contracts': row['doc']['contracts'],
                 })
                 yield item
+            if killer.kill_now:
+                break
+
         else:
+            if killer.kill_now:
+                break
             sleep(timeout)
 
 
