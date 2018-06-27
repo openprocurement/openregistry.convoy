@@ -110,7 +110,7 @@ class Convoy(object):
         self.transmitter = spawn(self.file_bridge)
         sleep(1)
         LOGGER.info('Getting auctions')
-        for auction in continuous_changes_feed(self.db, self.timeout):
+        for auction in continuous_changes_feed(self.db, self.killer, self.timeout):
             LOGGER.info('Received auction {}'.format(repr(auction)))
 
             if auction['procurementMethodType'] not in self.auction_type_processing_configurator:
