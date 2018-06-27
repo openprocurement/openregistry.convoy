@@ -72,6 +72,7 @@ class TestUtilsSuite(unittest.TestCase):
             {'last_seq': 1, 'results': [
                 {'doc': {
                          '_id': auction_id,
+                         'id': auction_id,
                          'status': 'pending.verifcation',
                          'merchandisingObject': lot_id,
                          'procurementMethodType': 'rubble',
@@ -87,6 +88,7 @@ class TestUtilsSuite(unittest.TestCase):
                 results.append(r)
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0], {'merchandisingObject': lot_id,
+                                      '_id': auction_id,
                                       'id': auction_id,
                                       'status': 'pending.verifcation',
                                       'procurementMethodType': 'rubble',
