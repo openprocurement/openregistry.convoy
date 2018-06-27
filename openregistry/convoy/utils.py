@@ -117,14 +117,9 @@ def continuous_changes_feed(db, killer, timeout=10, limit=100,
         last_seq_id = data['last_seq']
         if len(data['results']) != 0:
             for row in data['results']:
-                item = Munch({
-                    'id': row['doc']['_id'],
-                    'status': row['doc']['status'],
-                    'merchandisingObject': row['doc'].get('merchandisingObject'),
-                    'procurementMethodType': row['doc']['procurementMethodType'],
-                    'contracts': row['doc']['contracts'],
-                })
-                yield item
+                item = row['doc']
+                item['id'] = item.pop('_id', None)
+                yield Munch(item)
             if killer.kill_now:
                 break
 
