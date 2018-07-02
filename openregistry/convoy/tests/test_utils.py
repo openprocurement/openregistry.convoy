@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
+import os
 import unittest
-import json
-import mock
 from uuid import uuid4
 
-from couchdb import Server, Session, Database
+import mock
+from couchdb import Database
+from lazydb import Db as LazyDB
+from yaml import safe_load as load
 
 from openprocurement_client.clients import APIResourceClient
 from openprocurement_client.resources.assets import AssetsClient
@@ -15,9 +17,12 @@ from openregistry.convoy.utils import (
     continuous_changes_feed,
     FILTER_DOC_ID,
     FILTER_CONVOY_FEED_DOC,
-    init_clients
+    init_clients,
+    AuctionsMapping
 )
 from openregistry.convoy.constants import DEFAULTS
+
+ROOT = '/'.join(os.path.dirname(__file__).split('/')[:-3])
 
 
 class AlmostAlwaysTrue(object):
@@ -35,6 +40,13 @@ class AlmostAlwaysTrue(object):
 
 class TestUtilsSuite(unittest.TestCase):
     """ """
+    def setUp(self):
+        with open('{}/convoy.yaml'.format(ROOT)) as config_file_obj:
+            self.config = load(config_file_obj.read())
+
+    def tearDown(self):
+        test_mapping_name = self.config.get('auctions_mapping', {}).get('name', 'auctions_mapping')
+        LazyDB(test_mapping_name).destroy(test_mapping_name)
 
     def test_push_filter_doc(self):
         db = mock.MagicMock()
@@ -62,6 +74,7 @@ class TestUtilsSuite(unittest.TestCase):
         self.assertIsInstance(clients['lots_client'], LotsClient)
         self.assertIsInstance(clients['assets_client'], AssetsClient)
         self.assertIsInstance(clients['db'], Database)
+        self.assertIsInstance(clients['auctions_mapping'], AuctionsMapping)
         self.assertEqual(clients['db'].name, DEFAULTS['db']['name'])
 
     def test_continuous_changes_feed(self):
@@ -95,6 +108,41 @@ class TestUtilsSuite(unittest.TestCase):
                                       'contracts': [{'status': 'cancelled'}]
                                       })
 
+    @mock.patch('logging.Logger.info')
+    @mock.patch('openregistry.convoy.utils.StrictRedis')
+    def test_auctions_mapping_redis(self, mock_redis, mock_logger):
+        config = {
+            'host': '127.0.0.1',
+            'port': 6379,
+            'name': 0
+        }
+        AuctionsMapping(config)
+
+        mock_redis.assert_called_once_with(
+            host=config['host'],
+            port=config['port'],
+            db=config['name']
+        )
+        mock_logger.assert_called_once_with(
+            'Set redis store "{name}" at {host}:{port} as auctions mapping'.format(
+                **config
+            )
+        )
+
+    @mock.patch('logging.Logger.info')
+    @mock.patch('openregistry.convoy.utils.LazyDB')
+    def test_auctions_mapping_lazydb(self, mock_lazy_db, mock_logger):
+        config = {
+            'name': 'test'
+        }
+        AuctionsMapping(config)
+
+        mock_lazy_db.assert_called_once_with(
+            config['name']
+        )
+        mock_logger.assert_called_once_with(
+            'Set lazydb "{name}" as auctions mapping'.format(**config)
+        )
 
 def suite():
     suite = unittest.TestSuite()

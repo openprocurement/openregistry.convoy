@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from gevent import monkey
+from openregistry.convoy.tests.test_utils import AlmostAlwaysTrue
 from openregistry.convoy.utils import make_contract
 
 monkey.patch_all()
@@ -10,10 +11,11 @@ import mock
 import os
 from copy import deepcopy
 from random import choice
-from yaml import load
+from yaml import safe_load as load
 from gevent.queue import Queue
 from munch import munchify, Munch
 from couchdb import Server, Session, Database
+from lazydb import Db
 from openprocurement_client.exceptions import ResourceNotFound
 from openprocurement_client.resources.assets import AssetsClient
 from openprocurement_client.resources.lots import LotsClient
@@ -70,6 +72,8 @@ class TestConvoySuite(unittest.TestCase):
 
     def tearDown(self):
         del self.server[self.config['db']['name']]
+        test_mapping_name = self.config.get('auctions_mapping', {}).get('name', 'auctions_mapping')
+        Db(test_mapping_name).destroy(test_mapping_name)
 
     @mock.patch('requests.Response.raise_for_status')
     @mock.patch('requests.Session.request')
@@ -580,7 +584,6 @@ class TestConvoySuite(unittest.TestCase):
         lot = munchify({
             'data': {
                 'id': auction_doc.merchandisingObject,
-                'relatedProcessID': auction_doc.id,
                 'status': u'active.auction',
                 'auctions': [munchify({"relatedProcessID": auction_doc.id,
                                        "id": uuid4().hex,
@@ -624,6 +627,50 @@ class TestConvoySuite(unittest.TestCase):
         mock_logger.assert_any_call(
             'Update lot\'s {} contract data'.format(lot.data.id)
         )
+
+    @mock.patch('requests.Response.raise_for_status')
+    @mock.patch('requests.Session.request')
+    def test_auctions_mapping_filtering(self, mock_raise, mock_request):
+        changes_return_value = {
+            'last_seq': 2,
+            'results': [
+                {'doc': {'id': uuid4().hex,
+                         'status': 'unsuccessful',
+                         'procurementMethodType': choice(['sellout.insider', 'sellout.english'])}} for _ in range(3)
+            ]
+        }
+        processed_auction = deepcopy(changes_return_value['results'][0])
+        mock_changes = mock.MagicMock()
+        mock_changes.side_effect = [
+            changes_return_value,  # 3 unprocessed auctions
+            {'last_seq': 3, 'results': [processed_auction]}  # auction which already processed
+        ]
+        convoy = Convoy(self.config)
+        convoy.db.changes = mock_changes
+
+        loki_processing = convoy.auction_type_processing_configurator[
+            processed_auction['doc']['procurementMethodType']
+        ]
+        loki_processing._get_lot = mock.MagicMock()
+        loki_processing._check_lot_auction = mock.MagicMock()
+        mock_switch = mock.MagicMock(return_value=True)
+        loki_processing._switch_auction_status = mock_switch
+
+        with mock.patch(
+            'openregistry.convoy.utils.CONTINUOUS_CHANGES_FEED_FLAG',
+            AlmostAlwaysTrue(3)
+        ):
+            convoy.timeout = 0.1
+            convoy.run()
+
+        # only 3 first auctions were processed, skipping one which already in mapping
+        self.assertEqual(mock_switch.call_count, 3)
+        for i in range(0, 2):
+            self.assertEqual(
+                convoy.auctions_mapping.has(
+                    changes_return_value['results'][i]['doc']['id']
+                ), True
+            )
 
     @mock.patch('requests.Session.request')
     @mock.patch('openregistry.convoy.convoy.argparse.ArgumentParser',
