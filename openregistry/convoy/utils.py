@@ -212,6 +212,9 @@ def make_contract(auction):
         'relatedProcessID': auction.id
     }
 
+    if 'mode' in auction:
+        contract_object['mode'] = 'test'
+
     for key in CONTRACT_REQUIRED_FIELDS:
         contract_object[key] = contract.get(key)
 
