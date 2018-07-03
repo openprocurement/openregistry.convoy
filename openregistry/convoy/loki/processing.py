@@ -4,13 +4,20 @@ import logging.config
 from retrying import retry
 
 from openprocurement_client.exceptions import (
+    Forbidden,
+    RequestFailed,
     ResourceNotFound,
+    UnprocessableEntity,
+    Conflict,
+    PreconditionFailed,
 )
 
 from openregistry.convoy.loki.constants import (
     SUCCESSFUL_TERMINAL_STATUSES, UNSUCCESSFUL_TERMINAL_STATUSES
 )
 from openregistry.convoy.utils import retry_on_error, make_contract
+
+EXCEPTIONS = (Forbidden, RequestFailed, ResourceNotFound, UnprocessableEntity, PreconditionFailed, Conflict)
 
 LOGGER = logging.getLogger('openregistry.convoy.convoy')
 
@@ -62,6 +69,12 @@ class ProcessingLoki(object):
 
         elif auction_doc.status in SUCCESSFUL_TERMINAL_STATUSES:
             contract_data = make_contract(auction_doc)
+            try:
+                contract_data['transfer_token'] = self._extract_transfer_token(auction_doc['id'])
+            except EXCEPTIONS as e:
+                message = 'Server error: {}'.format(e.status_code) if e.status_code >= 500 else e.message
+                logger.error("Failed to extract transfer token from auction {} ({})".format(auction_doc.id, message))
+                return
             contract = self._post_contract({'data': contract_data}, lot.id)
             self._switch_auction_status(auction_doc.status, lot.id, lot_auction.id)
             self.update_lot_contract(lot, contract)
@@ -87,6 +100,12 @@ class ProcessingLoki(object):
             subitem_id=contract_id
         )
         LOGGER.info('Update lot\'s {} contract data'.format(lot_id))
+
+    @retry(stop_max_attempt_number=5, retry_on_exception=retry_on_error, wait_fixed=2000)
+    def _extract_transfer_token(self, auction_id):
+        credentials = self.auctions_client.extract_credentials(resource_item_id=auction_id)
+        logger.info("Successfully extracted tranfer_token from auction {})".format(auction_id))
+        return credentials['data']['transfer_token']
 
     def _check_lot_auction(self, lot, auction_doc):
         lot_auction = next((auction for auction in lot.auctions

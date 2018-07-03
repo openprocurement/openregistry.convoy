@@ -4,7 +4,8 @@ UNSUCCESSFUL_TERMINAL_STATUSES = ('cancelled', 'unsuccessful')
 CONTRACT_TYPE = 'ceasefire'
 CONTRACT_REQUIRED_FIELDS = [
     'awardID', 'contractID', 'items', 'suppliers',
-    'value', 'dateSigned', 'documents'
+    'value', 'dateSigned',
+    #'documents'
 ]
 CONTRACT_NOT_REQUIRED_FIELDS = [
     'contractNumber', 'title', 'title_en', 'title_ru',

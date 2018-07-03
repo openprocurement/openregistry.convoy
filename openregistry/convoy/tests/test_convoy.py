@@ -437,6 +437,8 @@ class TestConvoySuite(unittest.TestCase):
             convoy.lots_client = loki_processing.lots_client = lc
             loki_processing._post_contract = mock.MagicMock()
             loki_processing.update_lot_contract = mock.MagicMock()
+            tt = lambda l: 'transfer_token'
+            loki_processing._extract_transfer_token = mock.MagicMock(side_effect=tt)
             loki_processing.report_results(auction_doc)
             convoy.lots_client.patch_resource_item_subitem.assert_called_with(
                 resource_item_id=auction_doc.merchandisingObject,
@@ -599,12 +601,16 @@ class TestConvoySuite(unittest.TestCase):
         loki_processing = convoy.auction_type_processing_configurator[auction_doc.procurementMethodType]
         convoy.lots_client = loki_processing.lots_client = lc
         convoy.contracts_client = loki_processing.contracts_client = cc
+        tt = lambda l: 'transfer_token'
+        loki_processing._extract_transfer_token = mock.MagicMock(side_effect=tt)
         loki_processing.report_results(auction_doc)
         convoy.lots_client.get_lot.assert_called_with(
             auction_doc.merchandisingObject
         )
+        contact_data = make_contract(auction_doc)
+        contact_data['transfer_token'] = 'transfer_token'
         convoy.contracts_client.create_contract.assert_called_with(
-            {"data": make_contract(auction_doc)}
+            {"data": contact_data}
         )
         mock_logger.assert_any_call(
             'Successfully created contract {} from lot {}'.format(

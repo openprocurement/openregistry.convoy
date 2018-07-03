@@ -208,7 +208,8 @@ def make_contract(auction):
     contract = auction.contracts[-1]
     contract_object = {
         'merchandisingObject': auction.merchandisingObject,
-        'contractType': CONTRACT_TYPE
+        'contractType': CONTRACT_TYPE,
+        'relatedProcessID': auction.id
     }
 
     for key in CONTRACT_REQUIRED_FIELDS:
