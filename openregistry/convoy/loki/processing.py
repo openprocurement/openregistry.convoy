@@ -104,7 +104,7 @@ class ProcessingLoki(object):
     @retry(stop_max_attempt_number=5, retry_on_exception=retry_on_error, wait_fixed=2000)
     def _extract_transfer_token(self, auction_id):
         credentials = self.auctions_client.extract_credentials(resource_item_id=auction_id)
-        logger.info("Successfully extracted tranfer_token from auction {})".format(auction_id))
+        LOGGER.info("Successfully extracted tranfer_token from auction {})".format(auction_id))
         return credentials['data']['transfer_token']
 
     def _check_lot_auction(self, lot, auction_doc):
