@@ -114,14 +114,16 @@ class TestUtilsSuite(unittest.TestCase):
         config = {
             'host': '127.0.0.1',
             'port': 6379,
-            'name': 0
+            'name': 0,
+            'password': 'test'
         }
         AuctionsMapping(config)
 
         mock_redis.assert_called_once_with(
             host=config['host'],
             port=config['port'],
-            db=config['name']
+            db=config['name'],
+            password=config['password']
         )
         mock_logger.assert_called_once_with(
             'Set redis store "{name}" at {host}:{port} as auctions mapping'.format(
