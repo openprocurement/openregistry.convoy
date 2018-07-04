@@ -89,7 +89,8 @@ class AuctionsMapping(object):
             config = {
                 'host': self.config.get('host'),
                 'port': self.config.get('port') or 6379,
-                'db': self.config.get('name') or 0
+                'db': self.config.get('name') or 0,
+                'password': self.config.get('password') or None
             }
             self.db = StrictRedis(**config)
             LOGGER.info('Set redis store "{db}" at {host}:{port} '
