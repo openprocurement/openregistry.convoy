@@ -62,7 +62,7 @@ function(doc, req) {
         // loki lots auctions
         } else if (%s.indexOf(doc.procurementMethodType) >= 0) {
         
-            if (['TODO_complete', 'cancelled', 'unsuccessful'].indexOf(doc.status) >= 0  && doc.merchandisingObject) {
+            if (['complete', 'cancelled', 'unsuccessful'].indexOf(doc.status) >= 0  && doc.merchandisingObject) {
                 return true;
             };
         
