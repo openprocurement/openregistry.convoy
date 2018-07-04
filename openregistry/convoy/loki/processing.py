@@ -51,7 +51,8 @@ class ProcessingLoki(object):
         self.handled_lot_types += self.config.get('aliases', [])
 
     def process_auction(self, auction):
-        self.report_results(auction)
+        if not self.auctions_mapping.has(auction.id):
+            self.report_results(auction)
 
     def report_results(self, auction_doc):
         LOGGER.info('Report auction results {}'.format(auction_doc.id))
@@ -66,6 +67,7 @@ class ProcessingLoki(object):
 
         if auction_doc.status in UNSUCCESSFUL_TERMINAL_STATUSES:
             self._switch_auction_status(auction_doc.status, lot.id, lot_auction.id)
+            self.auctions_mapping.put(auction_doc.id, True)
 
         elif auction_doc.status in SUCCESSFUL_TERMINAL_STATUSES:
             contract_data = make_contract(auction_doc)
@@ -78,6 +80,7 @@ class ProcessingLoki(object):
             contract = self._post_contract({'data': contract_data}, lot.id)
             self._switch_auction_status(auction_doc.status, lot.id, lot_auction.id)
             self.update_lot_contract(lot, contract)
+            self.auctions_mapping.put(auction_doc.id, True)
 
     @retry(stop_max_attempt_number=5, retry_on_exception=retry_on_error, wait_fixed=2000)
     def _switch_auction_status(self, status, lot_id, auction_id):

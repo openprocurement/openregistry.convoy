@@ -5,8 +5,10 @@ from socket import error
 from time import sleep
 
 from couchdb import Server, Session
+from lazydb import Db as LazyDB
 from munch import Munch
 from pkg_resources import get_distribution
+from redis import StrictRedis
 
 from openprocurement_client.exceptions import (
     Forbidden,
@@ -60,7 +62,7 @@ function(doc, req) {
         // loki lots auctions
         } else if (%s.indexOf(doc.procurementMethodType) >= 0) {
         
-            if (['TODO_complete', 'cancelled', 'unsuccessful'].indexOf(doc.status) >= 0  && doc.merchandisingObject) {
+            if (['complete', 'cancelled', 'unsuccessful'].indexOf(doc.status) >= 0  && doc.merchandisingObject) {
                 return true;
             };
         
@@ -76,6 +78,66 @@ CONTINUOUS_CHANGES_FEED_FLAG = True  # Need for testing
 
 class ConfigError(Exception):
     pass
+
+
+class AuctionsMapping(object):
+    """Mapping for processed auctions"""
+
+    def __init__(self, config):
+        self.config = config
+        if 'host' in self.config:
+            config = {
+                'host': self.config.get('host'),
+                'port': self.config.get('port') or 6379,
+                'db': self.config.get('name') or 0,
+                'password': self.config.get('password') or None
+            }
+            self.db = StrictRedis(**config)
+            LOGGER.info('Set redis store "{db}" at {host}:{port} '
+                        'as auctions mapping'.format(**config))
+            self._set_value = self.db.set
+            self._has_value = self.db.exists
+        else:
+            db = self.config.get('name', 'auctions_mapping')
+            self.db = LazyDB(db)
+            LOGGER.info('Set lazydb "{}" as auctions mapping'.format(db))
+            self._set_value = self.db.put
+            self._has_value = self.db.has
+
+    def get(self, key):
+        return self.db.get(key)
+
+    def put(self, key, value, **kwargs):
+        self._set_value(key, value, **kwargs)
+
+    def has(self, key):
+        return self._has_value(key)
+
+    def delete(self, key):
+        return self.db.delete(key)
+
+
+def prepare_auctions_mapping(config, check=False):
+    """
+    Initialization of auctions_mapping, which are used for tracking auctions,
+    which already were processed by convoy.
+
+    :param config: configuration for auctions_mapping
+    :type config: dict
+    :param check: run doctest if set to True
+    :type check: bool
+    :return: auctions_mapping instance
+    :rtype: AuctionsMapping
+    """
+
+    db = AuctionsMapping(config)
+    if check:
+        db.put('test', '1')
+        assert db.has('test') is True
+        assert db.get('test') == '1'
+        db.delete('test')
+        assert db.has('test') is False
+    return db
 
 
 def prepare_couchdb(couch_url, db_name):
@@ -155,6 +217,7 @@ def init_clients(config):
     if not hasattr(clients_from_config['auctions_client'], 'ds_client'):
         LOGGER.warning("Document Service configuration is not available.")
 
+    # CouchDB check
     try:
         if config['db'].get('login', '') \
                 and config['db'].get('password', ''):
@@ -174,6 +237,17 @@ def init_clients(config):
         exceptions.append(e)
         result = ('failed', e)
     LOGGER.check('couchdb - {}'.format(result[0]), result[1])
+
+    # Processed auctions mapping check
+    try:
+        clients_from_config['auctions_mapping'] = prepare_auctions_mapping(
+            config.get('auctions_mapping', {}), check=True
+        )
+        result = ('ok', None)
+    except Exception as e:
+        exceptions.append(e)
+        result = ('failed', e)
+    LOGGER.check('auctions_mapping - {}'.format(result[0]), result[1])
 
     if exceptions:
         raise exceptions[0]

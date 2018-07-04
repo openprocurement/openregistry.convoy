@@ -3,9 +3,11 @@ gevent
 pyyaml
 couchdb
 couchapp
+redis
 git+https://github.com/openprocurement/openprocurement.client.python.git@registry
 webtest
 python-coveralls
 nose
 mock
+lazydb
 .

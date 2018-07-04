@@ -8,14 +8,16 @@ requires = [
     'pyyaml',
     'couchdb',
     'couchapp',
-    'openprocurement_client'
+    'openprocurement_client',
+    'redis'
 ]
 
 test_requires = [
     'webtest',
     'python-coveralls',
     'nose',
-    'mock'
+    'mock',
+    'lazydb'
 ]
 
 extras_requires = {
