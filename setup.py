@@ -9,7 +9,8 @@ requires = [
     'couchdb',
     'couchapp',
     'openprocurement_client',
-    'redis'
+    'redis',
+    'lazydb'
 ]
 
 test_requires = [
@@ -17,7 +18,6 @@ test_requires = [
     'python-coveralls',
     'nose',
     'mock',
-    'lazydb'
 ]
 
 extras_requires = {
