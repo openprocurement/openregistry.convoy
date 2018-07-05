@@ -280,7 +280,7 @@ def get_client_from_resource_type(processing, resource_type):
 def make_contract(auction):
     contract = auction.contracts[-1]
     contract_object = {
-        'contractType': auction.contractTerms['contractType'],
+        'contractType': auction.contractTerms['type'],
         'relatedProcessID': auction.id
     }
 
