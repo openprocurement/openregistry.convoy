@@ -24,7 +24,6 @@ from openprocurement_client.resources.lots import LotsClient
 from openprocurement_client.resources.contracts import ContractingClient
 
 from openregistry.convoy.loki.constants import (
-    CONTRACT_TYPE,
     CONTRACT_REQUIRED_FIELDS,
     CONTRACT_NOT_REQUIRED_FIELDS,
 )
@@ -281,10 +280,12 @@ def get_client_from_resource_type(processing, resource_type):
 def make_contract(auction):
     contract = auction.contracts[-1]
     contract_object = {
-        'merchandisingObject': auction.merchandisingObject,
-        'contractType': CONTRACT_TYPE,
+        'contractType': auction.contractTerms['contractType'],
         'relatedProcessID': auction.id
     }
+
+    if 'merchandisingObject' in auction:
+        contract_object['merchandisingObject'] = auction.merchandisingObject
 
     if 'mode' in auction:
         contract_object['mode'] = 'test'
