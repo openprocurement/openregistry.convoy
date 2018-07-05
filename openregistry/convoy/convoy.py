@@ -111,7 +111,7 @@ class Convoy(object):
         sleep(1)
         LOGGER.info('Getting auctions')
         for auction in continuous_changes_feed(self.db, self.killer, self.timeout):
-            LOGGER.info('Received auction {}'.format(repr(auction)))
+            LOGGER.info('Received auction {} in status {}'.format(auction['id'], auction['status']))
 
             if auction['procurementMethodType'] not in self.auction_type_processing_configurator:
                 LOGGER.warning(
