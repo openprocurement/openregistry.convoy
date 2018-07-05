@@ -57,29 +57,40 @@ class ProcessingLoki(object):
     def report_results(self, auction_doc):
         LOGGER.info('Report auction results {}'.format(auction_doc.id))
 
-        lot = self._get_lot(auction_doc)
-        if not lot:
-            return
+        lot_processing = 'merchandisingObject' in auction_doc
+        contract_processing = 'contractTerms' in auction_doc
 
-        lot_auction = self._check_lot_auction(lot, auction_doc)
-        if not lot_auction:
-            return
+        if lot_processing:
+
+            lot = self._get_lot(auction_doc)
+            if not lot:
+                return
+
+            lot_auction = self._check_lot_auction(lot, auction_doc)
+            if not lot_auction:
+                return
 
         if auction_doc.status in UNSUCCESSFUL_TERMINAL_STATUSES:
-            self._switch_auction_status(auction_doc.status, lot.id, lot_auction.id)
+            if lot_processing:
+                self._switch_auction_status(auction_doc.status, lot.id, lot_auction.id)
             self.auctions_mapping.put(auction_doc.id, True)
 
         elif auction_doc.status in SUCCESSFUL_TERMINAL_STATUSES:
-            contract_data = make_contract(auction_doc)
-            try:
-                contract_data['transfer_token'] = self._extract_transfer_token(auction_doc['id'])
-            except EXCEPTIONS as e:
-                message = 'Server error: {}'.format(e.status_code) if e.status_code >= 500 else e.message
-                logger.error("Failed to extract transfer token from auction {} ({})".format(auction_doc.id, message))
-                return
-            contract = self._post_contract({'data': contract_data}, lot.id)
-            self._switch_auction_status(auction_doc.status, lot.id, lot_auction.id)
-            self.update_lot_contract(lot, contract)
+            if contract_processing:
+                contract_data = make_contract(auction_doc)
+                try:
+                    contract_data['transfer_token'] = self._extract_transfer_token(auction_doc['id'])
+                except EXCEPTIONS as e:
+                    message = 'Server error: {}'.format(e.status_code) if e.status_code >= 500 else e.message
+                    LOGGER.error(
+                        "Failed to extract transfer token from auction {} ({})".format(auction_doc.id, message)
+                    )
+                    return
+                contract = self._post_contract({'data': contract_data})
+            if lot_processing:
+                self._switch_auction_status(auction_doc.status, lot.id, lot_auction.id)
+            if lot_processing and contract_processing:
+                self.update_lot_contract(lot, contract)
             self.auctions_mapping.put(auction_doc.id, True)
 
     @retry(stop_max_attempt_number=5, retry_on_exception=retry_on_error, wait_fixed=2000)
@@ -128,13 +139,6 @@ class ProcessingLoki(object):
         return lot_auction
 
     def _get_lot(self, auction_doc):
-        if 'merchandisingObject' not in auction_doc:
-            LOGGER.warning(
-                'merchandisingObject is not provided in auction {}'.format(
-                    auction_doc.id
-                )
-            )
-            return
         lot_id = auction_doc.merchandisingObject
         try:
             lot = self.lots_client.get_lot(lot_id).data
@@ -150,9 +154,12 @@ class ProcessingLoki(object):
         return lot
 
     @retry(stop_max_attempt_number=5, retry_on_exception=retry_on_error, wait_fixed=2000)
-    def _post_contract(self, data, lot_id):
-        contract = self.contracts_client.create_contract(data).data
-        LOGGER.info("Successfully created contract {} from lot {}".format(contract.id, lot_id))
+    def _post_contract(self, contract_data):
+        contract = self.contracts_client.create_contract(contract_data).data
+        log_msg = "Successfully created contract {}".format(contract.id)
+        if 'merchandisingObject' in contract_data['data']:
+            log_msg += " from lot {}".format(contract_data['data']['merchandisingObject'])
+        LOGGER.info(log_msg)
         return contract
 
     def update_lot_contract(self, lot, contract):

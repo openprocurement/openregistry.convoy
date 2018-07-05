@@ -451,6 +451,8 @@ class TestConvoySuite(unittest.TestCase):
                 subitem_id=next(auction.id for auction in lot_auctions
                                 if auction_doc.id == auction.relatedProcessID)
             )
+            assert loki_processing._post_contract.call_count == 0
+            assert loki_processing.update_lot_contract.call_count == 0
 
     @mock.patch('logging.Logger.warning')
     @mock.patch('requests.Response.raise_for_status')
@@ -568,7 +570,7 @@ class TestConvoySuite(unittest.TestCase):
     @mock.patch('logging.Logger.info')
     @mock.patch('requests.Response.raise_for_status')
     @mock.patch('requests.Session.request')
-    def test_report_result_loki_contract_created(self, mock_raise, mock_request, mock_logger):
+    def test_report_result_loki_contract_lot_created(self, mock_raise, mock_request, mock_logger):
 
         lc = mock.MagicMock()
         cc = mock.MagicMock()
@@ -579,6 +581,7 @@ class TestConvoySuite(unittest.TestCase):
             'id': uuid4().hex,  # this is auction id
             'status': 'complete',
             'merchandisingObject': uuid4().hex,
+            'contractTerms': {'contractType': 'test'},
             'procurementMethodType': choice(['sellout.insider', 'sellout.english']),
             'contracts': [contract_dict]
         })
@@ -610,10 +613,10 @@ class TestConvoySuite(unittest.TestCase):
         convoy.lots_client.get_lot.assert_called_with(
             auction_doc.merchandisingObject
         )
-        contact_data = make_contract(auction_doc)
-        contact_data['transfer_token'] = 'transfer_token'
+        contract_data = make_contract(auction_doc)
+        contract_data['transfer_token'] = 'transfer_token'
         convoy.contracts_client.create_contract.assert_called_with(
-            {"data": contact_data}
+            {"data": contract_data}
         )
         mock_logger.assert_any_call(
             'Successfully created contract {} from lot {}'.format(
@@ -621,18 +624,52 @@ class TestConvoySuite(unittest.TestCase):
             )
         )
 
-        lc.patch_resource_item_subitem.assert_called_with(
-            resource_item_id=lot.data.id,
-            patch_data={'data': {'relatedProcessID': contract.data.id,
-                                 'contractID': contract.data.contractID,
-                                 'status': 'active'}},
-            subitem_name='contracts',
-            subitem_id=lot.data.contracts[0].id
-        )
+    @mock.patch('logging.Logger.info')
+    @mock.patch('requests.Response.raise_for_status')
+    @mock.patch('requests.Session.request')
+    def test_report_result_loki_contract_only_created(self, mock_raise, mock_request, mock_logger):
 
-        mock_logger.assert_any_call(
-            'Update lot\'s {} contract data'.format(lot.data.id)
+        lc = mock.MagicMock()
+        cc = mock.MagicMock()
+        with open('{}/contract.json'.format(self.test_files_path), 'r') as cf:
+            contract_dict = munchify(json.loads(cf.read()))
+
+        auction_doc = Munch({
+            'id': uuid4().hex,  # this is auction id
+            'status': 'complete',
+            'procurementMethodType': choice(['sellout.insider', 'sellout.english']),
+            'contractTerms': {'contractType': 'test'},
+            'contracts': [contract_dict]
+        })
+
+        contract = munchify({'data': {
+            'id': uuid4().hex,
+            'contractID': 'contract_id'
+        }})
+        # lc.get_lot.return_value = lot
+        cc.create_contract.return_value = contract
+        convoy = Convoy(self.config)
+        loki_processing = convoy.auction_type_processing_configurator[auction_doc.procurementMethodType]
+        convoy.lots_client = loki_processing.lots_client = lc
+        convoy.contracts_client = loki_processing.contracts_client = cc
+        tt = lambda l: 'transfer_token'
+        loki_processing._extract_transfer_token = mock.MagicMock(side_effect=tt)
+        loki_processing.report_results(auction_doc)
+
+        assert convoy.lots_client.get_lot.call_count == 0
+
+        contract_data = make_contract(auction_doc)
+        contract_data['transfer_token'] = 'transfer_token'
+
+        convoy.contracts_client.create_contract.assert_called_with(
+            {"data": contract_data}
         )
+        mock_logger.assert_called_with(
+            'Successfully created contract {}'.format(
+                contract.data.id
+            )
+        )
+        assert lc.patch_resource_item_subitem.call_count == 0
 
     @mock.patch('requests.Response.raise_for_status')
     @mock.patch('requests.Session.request')
@@ -642,6 +679,7 @@ class TestConvoySuite(unittest.TestCase):
             'results': [
                 {'doc': {'id': uuid4().hex,
                          'status': 'unsuccessful',
+                         'merchandisingObject': uuid4().hex,  # to get into lot_processing section
                          'procurementMethodType': choice(['sellout.insider', 'sellout.english'])}} for _ in range(3)
             ]
         }
