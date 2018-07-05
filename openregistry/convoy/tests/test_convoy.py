@@ -581,7 +581,7 @@ class TestConvoySuite(unittest.TestCase):
             'id': uuid4().hex,  # this is auction id
             'status': 'complete',
             'merchandisingObject': uuid4().hex,
-            'contractTerms': {'contractType': 'test'},
+            'contractTerms': {'type': 'test'},
             'procurementMethodType': choice(['sellout.insider', 'sellout.english']),
             'contracts': [contract_dict]
         })
@@ -638,7 +638,7 @@ class TestConvoySuite(unittest.TestCase):
             'id': uuid4().hex,  # this is auction id
             'status': 'complete',
             'procurementMethodType': choice(['sellout.insider', 'sellout.english']),
-            'contractTerms': {'contractType': 'test'},
+            'contractTerms': {'type': 'test'},
             'contracts': [contract_dict]
         })
 
