@@ -546,11 +546,14 @@ class TestConvoySuite(unittest.TestCase):
             'relatedProcessID': invalid_id  # this is (invalid) auction id
         })
 
+        lot_auction_without_related_process_id = deepcopy(lot_auction)
+        del lot_auction_without_related_process_id['relatedProcessID']
+
         lot = munchify({
             'data': {
                 'id': auction_doc.merchandisingObject,
                 'status': u'active.auction',
-                'auctions': [lot_auction]
+                'auctions': [lot_auction, lot_auction_without_related_process_id]
             }
         })
         lc.get_lot.return_value = lot

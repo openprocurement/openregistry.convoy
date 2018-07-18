@@ -123,7 +123,7 @@ class ProcessingLoki(object):
 
     def _check_lot_auction(self, lot, auction_doc):
         lot_auction = next((auction for auction in lot.auctions
-                            if auction_doc.id == auction.relatedProcessID), None)
+                            if auction_doc.id == auction.get('relatedProcessID')), None)
         if not lot_auction:
             LOGGER.warning(
                 'Auction object {} not found in lot {}'.format(
