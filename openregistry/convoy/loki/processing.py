@@ -73,7 +73,7 @@ class ProcessingLoki(object):
         if auction_doc.status in UNSUCCESSFUL_TERMINAL_STATUSES:
             if lot_processing:
                 self._switch_auction_status(auction_doc.status, lot.id, lot_auction.id)
-            self.auctions_mapping.put(auction_doc.id, True)
+            self.auctions_mapping.put(str(auction_doc.id), True)
 
         elif auction_doc.status in SUCCESSFUL_TERMINAL_STATUSES:
             if contract_processing:
@@ -91,7 +91,7 @@ class ProcessingLoki(object):
                 self._switch_auction_status(auction_doc.status, lot.id, lot_auction.id)
             if lot_processing and contract_processing:
                 self.update_lot_contract(lot, contract)
-            self.auctions_mapping.put(auction_doc.id, True)
+            self.auctions_mapping.put(str(auction_doc.id), True)
 
     @retry(stop_max_attempt_number=5, retry_on_exception=retry_on_error, wait_fixed=2000)
     def _switch_auction_status(self, status, lot_id, auction_id):
