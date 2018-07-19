@@ -686,6 +686,10 @@ class TestConvoySuite(unittest.TestCase):
                          'procurementMethodType': choice(['sellout.insider', 'sellout.english'])}} for _ in range(3)
             ]
         }
+
+        # to ensure that unicode strings are handled properly
+        changes_return_value['results'][2]['doc']['id'] = unicode(uuid4().hex)
+
         processed_auction = deepcopy(changes_return_value['results'][0])
         mock_changes = mock.MagicMock()
         mock_changes.side_effect = [
