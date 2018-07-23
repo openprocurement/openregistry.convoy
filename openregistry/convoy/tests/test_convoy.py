@@ -373,22 +373,24 @@ class TestConvoySuite(unittest.TestCase):
     def test_process_single_auction(self, mock_loki_process, mock_raise, mock_request, mock_logger):
 
         auction_id = uuid4().hex
-        auction_doc = munchify(
-            {'status': 'unsuccessful',
-             'id': auction_id,
-             'merchandisingObject': uuid4().hex,
-             'procurementMethodType': 'sellout.english'}
-        )
+        auction_doc = munchify({
+            "data": {
+                'status': 'unsuccessful',
+                'id': auction_id,
+                'merchandisingObject': uuid4().hex,
+                'procurementMethodType': 'sellout.english'
+            }
+        })
         convoy = Convoy(self.config)
-        convoy.db = mock.MagicMock()
-        convoy.db.get.return_value = auction_doc
+        convoy.auctions_client = mock.MagicMock()
+        convoy.auctions_client.get_auction.return_value = auction_doc
 
         convoy.process_single_auction(auction_id)
 
-        mock_loki_process.assert_called_with(auction_doc)
+        mock_loki_process.assert_called_with(auction_doc['data'])
         mock_logger.assert_called_with(
             'Received auction {} in status {}'.format(
-                auction_id, auction_doc.status
+                auction_id, auction_doc['data'].status
             )
         )
 

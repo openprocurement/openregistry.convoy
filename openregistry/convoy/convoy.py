@@ -10,7 +10,6 @@ import os
 import argparse
 from gevent.queue import Queue, Empty
 from gevent import spawn, sleep
-from munch import Munch
 from yaml import load
 
 from openregistry.convoy.utils import (
@@ -117,12 +116,15 @@ class Convoy(object):
             )
             return
 
-        self.auction_type_processing_configurator[auction['procurementMethodType']].process_auction(auction)
+        processing = self.auction_type_processing_configurator.get(
+            auction['procurementMethodType']
+        )
+        processing.process_auction(auction)
 
     def process_single_auction(self, auction_id):
-        auction = self.db.get(auction_id)
+        auction = self.auctions_client.get_auction(auction_id)
         if auction:
-            self.process_auction(Munch(auction))
+            self.process_auction(auction['data'])
 
     def run(self):
         self.transmitter = spawn(self.file_bridge)
