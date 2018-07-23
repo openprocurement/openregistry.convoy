@@ -43,7 +43,8 @@ class MockedArgumentParser(mock.MagicMock):
     def parse_args(self):
         return munchify({
             'config': '{}/{}'.format(ROOT, '/convoy.yaml'),
-            'check': False
+            'check': False,
+            'auction_id': None
         })
 
 
@@ -364,6 +365,32 @@ class TestConvoySuite(unittest.TestCase):
         }
         mock_spawn.assert_called_with(convoy.file_bridge)
         self.assertEqual(basic_processing.prepare_auction.call_count, 2)
+
+    @mock.patch('logging.Logger.info')
+    @mock.patch('requests.Session.request')
+    @mock.patch('requests.Response.raise_for_status')
+    @mock.patch('openregistry.convoy.loki.processing.ProcessingLoki.process_auction')
+    def test_process_single_auction(self, mock_loki_process, mock_raise, mock_request, mock_logger):
+
+        auction_id = uuid4().hex
+        auction_doc = munchify(
+            {'status': 'unsuccessful',
+             'id': auction_id,
+             'merchandisingObject': uuid4().hex,
+             'procurementMethodType': 'sellout.english'}
+        )
+        convoy = Convoy(self.config)
+        convoy.db = mock.MagicMock()
+        convoy.db.get.return_value = auction_doc
+
+        convoy.process_single_auction(auction_id)
+
+        mock_loki_process.assert_called_with(auction_doc)
+        mock_logger.assert_called_with(
+            'Received auction {} in status {}'.format(
+                auction_id, auction_doc.status
+            )
+        )
 
     @mock.patch('requests.Response.raise_for_status')
     @mock.patch('requests.Session.request')
