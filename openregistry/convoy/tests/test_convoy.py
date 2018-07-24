@@ -707,9 +707,14 @@ class TestConvoySuite(unittest.TestCase):
         convoy.contracts_client.create_contract.assert_called_with(
             {"data": contract_data}
         )
-        mock_logger.assert_called_with(
+        mock_logger.assert_any_call(
             'Successfully created contract {}'.format(
                 contract.data.id
+            )
+        )
+        mock_logger.assert_any_call(
+            'Save ID {} in cache'.format(
+                auction_doc.id
             )
         )
         assert lc.patch_resource_item_subitem.call_count == 0
