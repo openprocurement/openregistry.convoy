@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from gevent import monkey
+
 monkey.patch_all()
 
 import signal
@@ -11,6 +12,8 @@ import argparse
 from gevent.queue import Queue, Empty
 from gevent import spawn, sleep
 from yaml import load
+
+from openprocurement_client.exceptions import ResourceNotFound
 
 from openregistry.convoy.utils import (
     continuous_changes_feed, init_clients, push_filter_doc
@@ -122,8 +125,11 @@ class Convoy(object):
         processing.process_auction(auction)
 
     def process_single_auction(self, auction_id):
-        auction = self.auctions_client.get_auction(auction_id)
-        if auction:
+        try:
+            auction = self.auctions_client.get_auction(auction_id)
+        except ResourceNotFound:
+            LOGGER.warning('Auction object {} not found'.format(auction_id))
+        else:
             self.process_auction(auction['data'])
 
     def run(self):
