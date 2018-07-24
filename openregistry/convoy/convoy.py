@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from gevent import monkey
+
 monkey.patch_all()
 
 import signal
@@ -10,6 +11,8 @@ import argparse
 from gevent.queue import Queue, Empty
 from gevent import spawn, sleep
 from yaml import load
+
+from openprocurement_client.exceptions import ResourceNotFound
 
 from openregistry.convoy.utils import (
     continuous_changes_feed, init_clients, push_filter_doc, LOGGER
@@ -102,22 +105,35 @@ class Convoy(object):
             except Empty:
                 sleep(self.transmitter_timeout)
 
+    def process_auction(self, auction):
+        LOGGER.info('Received auction {} in status {}'.format(auction['id'], auction['status']))
+
+        if auction['procurementMethodType'] not in self.auction_type_processing_configurator:
+            LOGGER.warning(
+                'Such procurementMethodType %s is not supported by this'
+                ' convoy configuration' % auction['procurementMethodType']
+            )
+            return
+
+        processing = self.auction_type_processing_configurator.get(
+            auction['procurementMethodType']
+        )
+        processing.process_auction(auction)
+
+    def process_single_auction(self, auction_id):
+        try:
+            auction = self.auctions_client.get_auction(auction_id)
+        except ResourceNotFound:
+            LOGGER.warning('Auction object {} not found'.format(auction_id))
+        else:
+            self.process_auction(auction['data'])
+
     def run(self):
         self.transmitter = spawn(self.file_bridge)
         sleep(1)
         LOGGER.info('Getting auctions')
         for auction in continuous_changes_feed(self.db, self.killer, self.timeout):
-            LOGGER.info('Received auction {} in status {}'.format(auction['id'], auction['status']))
-
-            if auction['procurementMethodType'] not in self.auction_type_processing_configurator:
-                LOGGER.warning(
-                    'Such procurementMethodType %s is not supported by this'
-                    ' convoy configuration' % auction['procurementMethodType']
-                )
-                continue
-
-            self.auction_type_processing_configurator[auction['procurementMethodType']].process_auction(auction)
-
+            self.process_auction(auction)
             if self.killer.kill_now:
                 break
 
@@ -128,6 +144,8 @@ def main():
     parser.add_argument('-t', dest='check', action='store_const',
                         const=True, default=False,
                         help='Clients check only')
+    parser.add_argument('--single', dest='auction_id', type=str,
+                        help='Id of auction for single convoy run')
     params = parser.parse_args()
     config = {}
     if os.path.isfile(params.config):
@@ -138,7 +156,10 @@ def main():
     convoy = Convoy(DEFAULTS)
     if params.check:
         exit()
-    convoy.run()
+    if params.auction_id:
+        convoy.process_single_auction(params.auction_id)
+    else:
+        convoy.run()
 
 
 ###############################################################################
