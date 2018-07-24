@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-import logging.config
-
 from retrying import retry
 
 from openprocurement_client.exceptions import (
@@ -15,11 +13,9 @@ from openprocurement_client.exceptions import (
 from openregistry.convoy.loki.constants import (
     SUCCESSFUL_TERMINAL_STATUSES, UNSUCCESSFUL_TERMINAL_STATUSES
 )
-from openregistry.convoy.utils import retry_on_error, make_contract
+from openregistry.convoy.utils import retry_on_error, make_contract, LOGGER
 
 EXCEPTIONS = (Forbidden, RequestFailed, ResourceNotFound, UnprocessableEntity, PreconditionFailed, Conflict)
-
-LOGGER = logging.getLogger('openregistry.convoy.convoy')
 
 
 class ProcessingLoki(object):

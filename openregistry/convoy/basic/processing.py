@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-import logging.config
-
 from retrying import retry
 
 from openprocurement_client.constants import DOCUMENTS
@@ -8,9 +6,7 @@ from openprocurement_client.exceptions import (
     ResourceNotFound,
 )
 
-from openregistry.convoy.utils import retry_on_error, get_client_from_resource_type
-
-LOGGER = logging.getLogger('openregistry.convoy.convoy')
+from openregistry.convoy.utils import retry_on_error, get_client_from_resource_type, LOGGER
 
 
 class ProcessingBasic(object):

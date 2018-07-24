@@ -3,7 +3,6 @@ from gevent import monkey
 monkey.patch_all()
 
 import signal
-import logging
 import logging.config
 import os
 
@@ -13,14 +12,11 @@ from gevent import spawn, sleep
 from yaml import load
 
 from openregistry.convoy.utils import (
-    continuous_changes_feed, init_clients, push_filter_doc
+    continuous_changes_feed, init_clients, push_filter_doc, LOGGER
 )
 from openregistry.convoy.constants import DEFAULTS, DOCUMENT_KEYS, KEYS
 from openregistry.convoy.loki.processing import ProcessingLoki
 from openregistry.convoy.basic.processing import ProcessingBasic
-
-
-LOGGER = logging.getLogger(__name__)
 
 
 class GracefulKiller(object):
