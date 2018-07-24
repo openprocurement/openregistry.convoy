@@ -107,6 +107,7 @@ class AuctionsMapping(object):
         return self.db.get(key)
 
     def put(self, key, value, **kwargs):
+        LOGGER.info('Save ID {} in cache'.format(key))
         self._set_value(key, value, **kwargs)
 
     def has(self, key):
