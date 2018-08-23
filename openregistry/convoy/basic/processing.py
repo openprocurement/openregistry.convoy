@@ -7,6 +7,10 @@ from openprocurement_client.exceptions import (
 )
 
 from openregistry.convoy.utils import retry_on_error, get_client_from_resource_type, LOGGER
+from openregistry.convoy.basic.constants import (
+    AUCTION_SWITCH_STATUS_MESSAGE_ID,
+    LOT_SWITCH_STATUS_MESSAGE_ID
+)
 
 
 class ProcessingBasic(object):
@@ -218,13 +222,22 @@ class ProcessingBasic(object):
         return documents
 
     def _switch_resource_status(self, resource_type, resource_id, status):
+        log_extra = {
+            'MESSAGE_ID': '',
+            'STATUS': ''
+        }
+        if resource_type == 'lot':
+            log_extra['MESSAGE_ID'] = LOT_SWITCH_STATUS_MESSAGE_ID
+            log_extra['STATUS'] = status
+        elif resource_type == 'auction':
+            log_extra['MESSAGE_ID'] = AUCTION_SWITCH_STATUS_MESSAGE_ID
+            log_extra['STATUS'] = status
+
         message = 'Switch {} {} status to {} '.format(resource_type, resource_id, status)
         client = get_client_from_resource_type(self, resource_type)
         patch_data = {'data': {'status': status}}
 
-        resource = self._patch_resource_item(
-            client, resource_id, patch_data, message
-        )
+        resource = self._patch_resource_item(client, resource_id, patch_data, message, log_extra)
         return resource
 
     @retry(stop_max_attempt_number=5, retry_on_exception=retry_on_error, wait_fixed=2000)
