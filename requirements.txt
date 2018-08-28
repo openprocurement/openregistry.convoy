@@ -10,4 +10,5 @@ python-coveralls
 nose
 mock
 lazydb
+statsdhandler
 .
