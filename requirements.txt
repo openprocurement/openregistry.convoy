@@ -10,4 +10,5 @@ python-coveralls
 nose
 mock
 lazydb
+git+https://github.com/openprocurement/statsdhandler.git
 .

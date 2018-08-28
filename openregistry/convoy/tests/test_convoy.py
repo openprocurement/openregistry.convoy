@@ -777,11 +777,12 @@ class TestConvoySuite(unittest.TestCase):
                 ), True
             )
 
+    @mock.patch('logging.config')
     @mock.patch('requests.Session.request')
     @mock.patch('openregistry.convoy.convoy.argparse.ArgumentParser',
                 MockedArgumentParser)
     @mock.patch('openregistry.convoy.convoy.Convoy')
-    def test__main(self, mock_convoy, mock_request):
+    def test__main(self, mock_convoy, mock_request, logging_config):
         convoy_main()
         config_dict = deepcopy(DEFAULTS)
         with open('{}/{}'.format(ROOT, 'convoy.yaml'), 'r') as cf:
