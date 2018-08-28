@@ -10,7 +10,8 @@ requires = [
     'couchapp',
     'openprocurement_client',
     'redis',
-    'lazydb'
+    'lazydb',
+    'statsdhandler'
 ]
 
 test_requires = [

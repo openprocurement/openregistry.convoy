@@ -11,7 +11,8 @@ from openprocurement_client.exceptions import (
 )
 
 from openregistry.convoy.loki.constants import (
-    SUCCESSFUL_TERMINAL_STATUSES, UNSUCCESSFUL_TERMINAL_STATUSES
+    SUCCESSFUL_TERMINAL_STATUSES, UNSUCCESSFUL_TERMINAL_STATUSES,
+    CREATE_CONTRACT_MESSAGE_ID, UPDATE_CONTRACT_MESSAGE_ID, SWITCH_LOT_AUCTION_STATUS_MESSAGE_ID
 )
 from openregistry.convoy.utils import retry_on_error, make_contract, LOGGER
 
@@ -97,8 +98,12 @@ class ProcessingLoki(object):
             subitem_name='auctions',
             subitem_id=auction_id
         )
-        LOGGER.info('Switch lot\'s {} auction {} to ({}) status'.format(
-            lot_id, auction_id, status)
+        LOGGER.info(
+            'Switch lot\'s {} auction {} to ({}) status'.format(lot_id, auction_id, status),
+            extra={
+                'MESSAGE_ID': SWITCH_LOT_AUCTION_STATUS_MESSAGE_ID,
+                'STATUS': status
+            }
         )
 
     @retry(stop_max_attempt_number=5, retry_on_exception=retry_on_error, wait_fixed=2000)
@@ -109,7 +114,12 @@ class ProcessingLoki(object):
             subitem_name='contracts',
             subitem_id=contract_id
         )
-        LOGGER.info('Update lot\'s {} contract data'.format(lot_id))
+        LOGGER.info(
+            'Update lot\'s {} contract data'.format(lot_id),
+            extra={
+                'MESSAGE_ID': UPDATE_CONTRACT_MESSAGE_ID
+            }
+        )
 
     @retry(stop_max_attempt_number=5, retry_on_exception=retry_on_error, wait_fixed=2000)
     def _extract_transfer_token(self, auction_id):
@@ -128,9 +138,7 @@ class ProcessingLoki(object):
             )
             return
         if lot_auction['status'] != 'active':
-            LOGGER.info('Auction {} results already reported to lot {}'.format(
-                auction_doc.id, lot.id)
-            )
+            LOGGER.info('Auction {} results already reported to lot {}'.format(auction_doc.id, lot.id))
             return
         return lot_auction
 
@@ -155,7 +163,12 @@ class ProcessingLoki(object):
         log_msg = "Successfully created contract {}".format(contract.id)
         if 'merchandisingObject' in contract_data['data']:
             log_msg += " from lot {}".format(contract_data['data']['merchandisingObject'])
-        LOGGER.info(log_msg)
+        LOGGER.info(
+            log_msg,
+            extra={
+                'MESSAGE_ID': CREATE_CONTRACT_MESSAGE_ID
+            }
+        )
         return contract
 
     def update_lot_contract(self, lot, contract):
