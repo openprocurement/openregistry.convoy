@@ -73,7 +73,7 @@ class ProcessingLoki(object):
             self.auctions_mapping.put(str(auction_doc.id), True)
 
         elif auction_doc.status in SUCCESSFUL_TERMINAL_STATUSES:
-            if contract_processing:
+            if contract_processing and lot_processing:
                 contract_data = make_contract(auction_doc)
                 try:
                     contract_data['transfer_token'] = self._extract_transfer_token(auction_doc['id'])
@@ -83,7 +83,16 @@ class ProcessingLoki(object):
                         "Failed to extract transfer token from auction {} ({})".format(auction_doc.id, message)
                     )
                     return
-                contract = self._post_contract({'data': contract_data})
+                if lot.contracts[0].get('relatedProcessID') is None:
+                    contract = self._post_contract({'data': contract_data})
+                else:
+                    LOGGER.info(
+                        'Contract {} has already created, and patched to lot {}'.format(
+                            lot.contracts[0].get('relatedProcessID'),
+                            lot.id
+                        )
+                    )
+                    return
             if lot_processing:
                 self._switch_auction_status(auction_doc.status, lot.id, lot_auction.id)
             if lot_processing and contract_processing:
