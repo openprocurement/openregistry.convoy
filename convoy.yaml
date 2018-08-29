@@ -54,13 +54,18 @@
       formatter: simple
       stream: ext://sys.stdout
 
+    statsd:
+      class: statsdhandler.statsdhandler.StatsdHandler
+      level: DEBUG
+      config_path: /path/to/statsdconfig.yaml
+
 
   loggers:
     openregistry.convoy:
-      handlers: [console]
+      handlers: [console, statsd]
       propagate: no
       level: DEBUG
 
     "":
-      handlers: [console]
+      handlers: [console, statsd]
       level: DEBUG

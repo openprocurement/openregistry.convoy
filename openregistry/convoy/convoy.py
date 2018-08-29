@@ -17,7 +17,12 @@ from openprocurement_client.exceptions import ResourceNotFound
 from openregistry.convoy.utils import (
     continuous_changes_feed, init_clients, push_filter_doc, LOGGER
 )
-from openregistry.convoy.constants import DEFAULTS, DOCUMENT_KEYS, KEYS
+from openregistry.convoy.constants import (
+    DEFAULTS,
+    DOCUMENT_KEYS,
+    KEYS,
+    GET_AUCTION_MESSAGE_ID
+)
 from openregistry.convoy.loki.processing import ProcessingLoki
 from openregistry.convoy.basic.processing import ProcessingBasic
 
@@ -106,7 +111,13 @@ class Convoy(object):
                 sleep(self.transmitter_timeout)
 
     def process_auction(self, auction):
-        LOGGER.info('Received auction {} in status {}'.format(auction['id'], auction['status']))
+        LOGGER.info(
+            'Received auction {} in status {}'.format(auction['id'], auction['status']),
+            extra={
+                'MESSAGE_ID': GET_AUCTION_MESSAGE_ID,
+                'STATUS': auction['status']
+            }
+        )
 
         if auction['procurementMethodType'] not in self.auction_type_processing_configurator:
             LOGGER.warning(

@@ -73,3 +73,5 @@ DEFAULTS = {
 
 DOCUMENT_KEYS = ['hash', 'description', 'title', 'url', 'format', 'documentType']
 KEYS = ['classification', 'additionalClassifications', 'address', 'unit', 'quantity', 'location', 'id']
+
+GET_AUCTION_MESSAGE_ID = 'get_auction'

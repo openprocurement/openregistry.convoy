@@ -1,0 +1,2 @@
+LOT_SWITCH_STATUS_MESSAGE_ID = 'switch_lot_status'
+AUCTION_SWITCH_STATUS_MESSAGE_ID = 'switch_auction_status'

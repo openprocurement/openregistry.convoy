@@ -1,0 +1,29 @@
+main:
+  app_key: app_key
+  host: localhost
+  port: 8125
+publish_templates:
+  all_levels:
+    - '%(logger)s;%(attr)s;%(metric_name)s'
+    - '%(attr)s;%(metric_name)s'
+    - '%(metric_name)s'
+  full_path:
+    - '%(logger)s;%(attr)s;%(metric_name)s'
+counters:
+  MESSAGE_ID:
+    value_type: key
+  TYPE:
+    value_type: key
+  STATUS:
+    value_type: key
+gauges:
+  JOURNAL_GAUGE_ATTR:
+    publish_template: full_path
+  JOURNAL_GAUGE_ATTR_DECR: {}
+histograms:
+  HISTOGRAM_ARG:
+    publish_template: full_path
+sets:
+  SET_ARG: {}
+  SET_ARG:
+    publish_template: full_path

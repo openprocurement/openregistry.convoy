@@ -21,7 +21,12 @@ from openprocurement_client.resources.assets import AssetsClient
 from openprocurement_client.resources.lots import LotsClient
 from openprocurement_client.clients import APIResourceClient
 from openregistry.convoy.convoy import Convoy, main as convoy_main
-from openregistry.convoy.constants import DEFAULTS
+from openregistry.convoy.constants import DEFAULTS, GET_AUCTION_MESSAGE_ID
+from openregistry.convoy.loki.constants import (
+    SWITCH_LOT_AUCTION_STATUS_MESSAGE_ID,
+    UPDATE_CONTRACT_MESSAGE_ID,
+    CREATE_CONTRACT_MESSAGE_ID
+)
 from uuid import uuid4
 
 # Absolute path to file, dropping 'openregistry/convoy/tests' part
@@ -391,8 +396,10 @@ class TestConvoySuite(unittest.TestCase):
         mock_loki_process.assert_called_with(auction_doc['data'])
         mock_info.assert_called_with(
             'Received auction {} in status {}'.format(
-                auction_id, auction_doc['data'].status
-            )
+                auction_id,
+                auction_doc['data'].status,
+            ),
+            extra={'MESSAGE_ID': GET_AUCTION_MESSAGE_ID, 'STATUS': auction_doc['data'].status}
         )
 
         # Auction can not be found
@@ -664,7 +671,8 @@ class TestConvoySuite(unittest.TestCase):
         mock_logger.assert_any_call(
             'Successfully created contract {} from lot {}'.format(
                 contract.data.id, auction_doc.merchandisingObject
-            )
+            ),
+            extra={'MESSAGE_ID': CREATE_CONTRACT_MESSAGE_ID}
         )
 
     @mock.patch('logging.Logger.info')
@@ -729,7 +737,8 @@ class TestConvoySuite(unittest.TestCase):
             'Successfully created contract {} from lot {}'.format(
                 contract.data.id,
                 auction_doc.merchandisingObject
-            )
+            ),
+            extra={'MESSAGE_ID': CREATE_CONTRACT_MESSAGE_ID}
         )
         mock_logger.assert_any_call(
             'Save ID {} in cache'.format(
@@ -845,11 +854,12 @@ class TestConvoySuite(unittest.TestCase):
                 ), True
             )
 
+    @mock.patch('logging.config')
     @mock.patch('requests.Session.request')
     @mock.patch('openregistry.convoy.convoy.argparse.ArgumentParser',
                 MockedArgumentParser)
     @mock.patch('openregistry.convoy.convoy.Convoy')
-    def test__main(self, mock_convoy, mock_request):
+    def test__main(self, mock_convoy, mock_request, logging_config):
         convoy_main()
         config_dict = deepcopy(DEFAULTS)
         with open('{}/{}'.format(ROOT, 'convoy.yaml'), 'r') as cf:
