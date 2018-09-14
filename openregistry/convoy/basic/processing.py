@@ -111,6 +111,8 @@ class ProcessingBasic(object):
             # Switch auction
             self.switch_auction_status(auction_doc['id'], 'active.tendering')
             return
+        elif lot.status == u'active.auction' and auction_doc.id != lot.auctions[-1]:
+            self.invalidate_auction(auction_doc.id)
         elif lot.status == u'active.awaiting' and auction_doc.id == lot.auctions[-1]:
             return lot
 
