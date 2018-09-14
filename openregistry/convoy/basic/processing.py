@@ -67,7 +67,7 @@ class ProcessingBasic(object):
             LOGGER.warning('Lot {} not found when report auction {} results'.format(lot_id, auction_doc.id))
             return
 
-        if lot.status != 'active.auction' and lot.auctions[-1] == auction_doc.id:
+        if lot.status != 'active.auction':
             LOGGER.info('Auction {} results already reported to lot {}'.format(auction_doc.id, lot_id))
             return
 
@@ -79,7 +79,10 @@ class ProcessingBasic(object):
             next_lot_status = 'active.salable'
 
         # Report results
-        self.switch_lot_status(lot['id'], next_lot_status)
+        try:
+            self.switch_lot_status(lot['id'], next_lot_status)
+        except Exception as e:
+            LOGGER.error('Failed update lot info {}. {}'.format(lot_id, e.message))
 
     def _receive_lot(self, auction_doc):
         lot_id = auction_doc.merchandisingObject
