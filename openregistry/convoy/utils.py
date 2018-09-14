@@ -191,13 +191,22 @@ def continuous_changes_feed(db, killer, timeout=10, limit=100,
 
 
 def init_clients(config):
+    sections = ['auctions', 'lots', 'assets', 'contracts']
+    sections = [section for section in sections if config.get(section)]
+
     clients_from_config = {
         'auctions_client': {'section': 'auctions', 'client_instance': AuctionsClient},
         'lots_client': {'section': 'lots', 'client_instance': LotsClient},
         'assets_client': {'section': 'assets', 'client_instance': AssetsClient},
         'contracts_client': {'section': 'contracts', 'client_instance': ContractingClient},
     }
+    clients_from_config = {
+        key:client_config
+        for key, client_config in clients_from_config.items()
+        if client_config['section'] in sections
+    }
     exceptions = []
+    LOGGER.info('Clients for such resources will be initialized {}'.format(sections))
 
     for key, item in clients_from_config.items():
         section = item['section']
