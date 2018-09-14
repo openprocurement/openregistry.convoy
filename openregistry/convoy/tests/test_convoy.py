@@ -313,6 +313,22 @@ class TestConvoySuite(unittest.TestCase):
             api_auction_doc['data']['id'],
             patched_api_auction_doc)
 
+        # convoy.prepare_auction(a_doc) with active.auction lot and auction.id not equal last of lot.auctions
+        lc.get_lot.return_value = munchify({
+            'data': {
+                'id': a_doc['merchandisingObject'],
+                'lotIdentifier': u'Q81318b19827',
+                'status': u'active.auction',
+                'assets': ['580d38b347134ac6b0ee3f04e34b9770'],
+                'auctions': ['1' * 32]
+            }
+        })
+        basic_processing._receive_lot(a_doc)
+        patched_api_auction_doc = {'data': {'status': 'invalid'}}
+        convoy.auctions_client.patch_resource_item.assert_called_with(
+            api_auction_doc['data']['id'],
+            patched_api_auction_doc)
+
     @mock.patch('requests.Response.raise_for_status')
     @mock.patch('requests.Session.request')
     def test_file_bridge(self, mock_raise, mock_request):
