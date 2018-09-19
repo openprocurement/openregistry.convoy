@@ -15,13 +15,16 @@ from yaml import load
 from openprocurement_client.exceptions import ResourceNotFound
 
 from openregistry.convoy.utils import (
-    continuous_changes_feed, init_clients, push_filter_doc, LOGGER
+    LOGGER,
+    continuous_changes_feed,
+    init_clients,
+    push_filter_doc,
 )
 from openregistry.convoy.constants import (
     DEFAULTS,
     DOCUMENT_KEYS,
+    GET_AUCTION_MESSAGE_ID,
     KEYS,
-    GET_AUCTION_MESSAGE_ID
 )
 from openregistry.convoy.loki.processing import ProcessingLoki
 from openregistry.convoy.basic.processing import ProcessingBasic
@@ -34,7 +37,7 @@ class GracefulKiller(object):
         signal.signal(signal.SIGINT, self.exit_gracefully)
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
-    def exit_gracefully(self,signum, frame):
+    def exit_gracefully(self, signum, frame):
         self.kill_now = True
 
 
@@ -101,7 +104,7 @@ class Convoy(object):
                         file_, headers
                     )
                     LOGGER.debug('Uploaded document file to auction DS')
-                except:
+                except Exception:
                     LOGGER.error('While receiving or uploading document '
                                  'something went wrong :(')
                     self.documents_transfer_queue.put(transfer_item)

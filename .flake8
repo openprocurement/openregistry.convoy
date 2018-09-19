@@ -1,0 +1,12 @@
+[flake8]
+max-line-length = 120
+ignore = E402, W293
+exclude =
+    .git,
+    bootstrap.py,
+    ez_setup.py,
+    docs.py,
+    bin/,
+    src/,
+    eggs/,
+    docs/,

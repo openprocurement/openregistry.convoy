@@ -1,31 +1,29 @@
 # -*- coding: utf-8 -*-
-from logging import getLogger, addLevelName, Logger
-from socket import error
-
-from time import sleep
-
 from couchdb import Server, Session
 from lazydb import Db as LazyDB
+from logging import getLogger, addLevelName, Logger
 from munch import Munch
 from pkg_resources import get_distribution
 from redis import StrictRedis
+from socket import error
+from time import sleep
 
 from openprocurement_client.exceptions import (
+    Conflict,
     Forbidden,
+    PreconditionFailed,
     RequestFailed,
     ResourceNotFound,
     UnprocessableEntity,
-    Conflict,
-    PreconditionFailed,
 )
 from openprocurement_client.resources.assets import AssetsClient
 from openprocurement_client.resources.auctions import AuctionsClient
-from openprocurement_client.resources.lots import LotsClient
 from openprocurement_client.resources.contracts import ContractingClient
+from openprocurement_client.resources.lots import LotsClient
 
 from openregistry.convoy.loki.constants import (
-    CONTRACT_REQUIRED_FIELDS,
     CONTRACT_NOT_REQUIRED_FIELDS,
+    CONTRACT_REQUIRED_FIELDS,
 )
 
 
@@ -201,7 +199,7 @@ def init_clients(config):
         'contracts_client': {'section': 'contracts', 'client_instance': ContractingClient},
     }
     clients_from_config = {
-        key:client_config
+        key: client_config
         for key, client_config in clients_from_config.items()
         if client_config['section'] in sections
     }

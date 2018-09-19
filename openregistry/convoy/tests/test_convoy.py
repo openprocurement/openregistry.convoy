@@ -23,8 +23,6 @@ from openprocurement_client.clients import APIResourceClient
 from openregistry.convoy.convoy import Convoy, main as convoy_main
 from openregistry.convoy.constants import DEFAULTS, GET_AUCTION_MESSAGE_ID
 from openregistry.convoy.loki.constants import (
-    SWITCH_LOT_AUCTION_STATUS_MESSAGE_ID,
-    UPDATE_CONTRACT_MESSAGE_ID,
     CREATE_CONTRACT_MESSAGE_ID
 )
 from uuid import uuid4
@@ -33,6 +31,9 @@ from uuid import uuid4
 # os.getcwd() is not suitable for run_test.py script
 ROOT = '/'.join(os.path.dirname(__file__).split('/')[:-3])
 
+
+def tt(l):
+    return 'transfer_token'
 
 
 class MockedArgumentParser(mock.MagicMock):
@@ -227,9 +228,10 @@ class TestConvoySuite(unittest.TestCase):
 
         # Needed to call mock function before prepare_auction, to
         # check if parameted of this call and call from prepare_auction is equal
-        expected = {'data': {
-            'items': items,
-            'dgfID': u'Q81318b19827'
+        expected = {
+            'data': {
+                'items': items,
+                'dgfID': u'Q81318b19827'
             }
         }
         # convoy.api_client.patch_resource_item(expected)
@@ -378,12 +380,6 @@ class TestConvoySuite(unittest.TestCase):
             None, {'data': {'id': mock_changes.return_value[1]['id'],
                             'status': 'pending.verification'}}])
         convoy.run()
-        auction_to_switch = {
-            'data': {
-                'id': mock_changes.return_value[1]['id'],
-                'status': 'pending.verification'
-            }
-        }
         mock_spawn.assert_called_with(convoy.file_bridge)
         self.assertEqual(basic_processing.prepare_auction.call_count, 2)
 
@@ -504,7 +500,6 @@ class TestConvoySuite(unittest.TestCase):
             convoy.lots_client = loki_processing.lots_client = lc
             loki_processing._post_contract = mock.MagicMock()
             loki_processing.update_lot_contract = mock.MagicMock()
-            tt = lambda l: 'transfer_token'
             loki_processing._extract_transfer_token = mock.MagicMock(side_effect=tt)
             loki_processing.report_results(auction_doc)
             convoy.lots_client.patch_resource_item_subitem.assert_called_with(
@@ -628,10 +623,8 @@ class TestConvoySuite(unittest.TestCase):
             auction_doc.merchandisingObject
         )
         mock_logger.assert_called_with(
-                'Auction object {} not found in lot {}'.format(
-                    auction_doc.id, auction_doc.merchandisingObject
-                )
-            )
+            'Auction object {} not found in lot {}'.format(
+                auction_doc.id, auction_doc.merchandisingObject))
 
     @mock.patch('logging.Logger.info')
     @mock.patch('requests.Response.raise_for_status')
@@ -673,7 +666,6 @@ class TestConvoySuite(unittest.TestCase):
         loki_processing = convoy.auction_type_processing_configurator[auction_doc.procurementMethodType]
         convoy.lots_client = loki_processing.lots_client = lc
         convoy.contracts_client = loki_processing.contracts_client = cc
-        tt = lambda l: 'transfer_token'
         loki_processing._extract_transfer_token = mock.MagicMock(side_effect=tt)
         loki_processing.report_results(auction_doc)
         convoy.lots_client.get_lot.assert_called_with(
@@ -736,7 +728,6 @@ class TestConvoySuite(unittest.TestCase):
         })
         mock_get_lot.return_value = lot
 
-        tt = lambda l: 'transfer_token'
         loki_processing._extract_transfer_token = mock.MagicMock(side_effect=tt)
         loki_processing.report_results(auction_doc)
 
@@ -804,7 +795,6 @@ class TestConvoySuite(unittest.TestCase):
         })
         mock_get_lot.return_value = lot
 
-        tt = lambda l: 'transfer_token'
         loki_processing._extract_transfer_token = mock.MagicMock(side_effect=tt)
         loki_processing.report_results(auction_doc)
 
