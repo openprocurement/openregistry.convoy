@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 SUCCESSFUL_TERMINAL_STATUSES = ('complete', )
 UNSUCCESSFUL_TERMINAL_STATUSES = ('cancelled', 'unsuccessful')
+SUCCESSFUL_PRE_TERMINAL_STATUSES = ('pending.complete', )
+UNSUCCESSFUL_PRE_TERMINAL_STATUSES = ('pending.cancelled', 'pending.unsuccessful')
 CONTRACT_REQUIRED_FIELDS = [
     'awardID', 'contractID', 'items', 'suppliers',
     'value', 'dateSigned',
