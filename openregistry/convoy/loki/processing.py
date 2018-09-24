@@ -11,8 +11,14 @@ from openprocurement_client.exceptions import (
 )
 
 from openregistry.convoy.loki.constants import (
-    SUCCESSFUL_TERMINAL_STATUSES, UNSUCCESSFUL_TERMINAL_STATUSES,
-    CREATE_CONTRACT_MESSAGE_ID, UPDATE_CONTRACT_MESSAGE_ID, SWITCH_LOT_AUCTION_STATUS_MESSAGE_ID
+    CREATE_CONTRACT_MESSAGE_ID,
+    PRE_TERMINAL_MAPPING,
+    SUCCESSFUL_TERMINAL_STATUSES,
+    SUCCESSFUL_PRE_TERMINAL_STATUSES,
+    SWITCH_LOT_AUCTION_STATUS_MESSAGE_ID,
+    UNSUCCESSFUL_PRE_TERMINAL_STATUSES,
+    UNSUCCESSFUL_TERMINAL_STATUSES,
+    UPDATE_CONTRACT_MESSAGE_ID,
 )
 from openregistry.convoy.utils import retry_on_error, make_contract, LOGGER
 
@@ -67,13 +73,16 @@ class ProcessingLoki(object):
             if not lot_auction:
                 return
 
-        if auction_doc.status in UNSUCCESSFUL_TERMINAL_STATUSES:
+        # terminalize status of lot auction
+        terminalized_status = PRE_TERMINAL_MAPPING.get(auction_doc.status, auction_doc.status)
+
+        # update lot's auction status with actual auction status
+        if auction_doc.status in UNSUCCESSFUL_TERMINAL_STATUSES + UNSUCCESSFUL_PRE_TERMINAL_STATUSES:
             if lot_processing:
-                # update lot's auction status with actual auction status
-                self._switch_auction_status(auction_doc.status, lot.id, lot_auction.id)
+                self._switch_auction_status(terminalized_status, lot.id, lot_auction.id)
             self.auctions_mapping.put(str(auction_doc.id), True)
 
-        elif auction_doc.status in SUCCESSFUL_TERMINAL_STATUSES:
+        elif auction_doc.status in SUCCESSFUL_TERMINAL_STATUSES + SUCCESSFUL_PRE_TERMINAL_STATUSES:
             if contract_processing and lot_processing:
                 # build contract regarding obligatoriness of it's fields
                 contract_data = make_contract(auction_doc)
@@ -98,7 +107,7 @@ class ProcessingLoki(object):
                     return
             if lot_processing:
                 # update lot's auction status with actual auction status
-                self._switch_auction_status(auction_doc.status, lot.id, lot_auction.id)
+                self._switch_auction_status(terminalized_status, lot.id, lot_auction.id)
             if lot_processing and contract_processing:
                 self.update_lot_contract(lot, contract)
             self.auctions_mapping.put(str(auction_doc.id), True)
