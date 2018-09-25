@@ -23,7 +23,8 @@ from openprocurement_client.clients import APIResourceClient
 from openregistry.convoy.convoy import Convoy, main as convoy_main
 from openregistry.convoy.constants import DEFAULTS, GET_AUCTION_MESSAGE_ID
 from openregistry.convoy.loki.constants import (
-    CREATE_CONTRACT_MESSAGE_ID
+    CREATE_CONTRACT_MESSAGE_ID,
+    PRE_TERMINAL_MAPPING,
 )
 from uuid import uuid4
 
@@ -464,7 +465,14 @@ class TestConvoySuite(unittest.TestCase):
     @mock.patch('requests.Session.request')
     def test_report_result_loki_success(self, mock_raise, mock_request, mock_make_contract):
 
-        terminal_loki_auction_statuses = ['complete', 'cancelled', 'unsuccessful']
+        terminal_loki_auction_statuses = [
+            'complete',
+            'cancelled',
+            'unsuccessful',
+            'pending.complete',
+            'pending.cancelled',
+            'pending.unsuccessful',
+        ]
         auction_docs = []
         lots = []
         lc = mock.MagicMock()
@@ -501,10 +509,13 @@ class TestConvoySuite(unittest.TestCase):
             loki_processing._post_contract = mock.MagicMock()
             loki_processing.update_lot_contract = mock.MagicMock()
             loki_processing._extract_transfer_token = mock.MagicMock(side_effect=tt)
+
             loki_processing.report_results(auction_doc)
+
+            terminalized_status = PRE_TERMINAL_MAPPING.get(auction_doc.status, auction_doc.status)
             convoy.lots_client.patch_resource_item_subitem.assert_called_with(
                 resource_item_id=auction_doc.merchandisingObject,
-                patch_data={'data': {'status': auction_doc.status}},
+                patch_data={'data': {'status': terminalized_status}},
                 subitem_name='auctions',
                 subitem_id=next(auction.id for auction in lot_auctions
                                 if auction_doc.id == auction.relatedProcessID)

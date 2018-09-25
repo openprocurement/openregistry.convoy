@@ -11,8 +11,14 @@ from openprocurement_client.exceptions import (
 )
 
 from openregistry.convoy.loki.constants import (
-    SUCCESSFUL_TERMINAL_STATUSES, UNSUCCESSFUL_TERMINAL_STATUSES,
-    CREATE_CONTRACT_MESSAGE_ID, UPDATE_CONTRACT_MESSAGE_ID, SWITCH_LOT_AUCTION_STATUS_MESSAGE_ID
+    CREATE_CONTRACT_MESSAGE_ID,
+    PRE_TERMINAL_MAPPING,
+    SUCCESSFUL_TERMINAL_STATUSES,
+    SUCCESSFUL_PRE_TERMINAL_STATUSES,
+    SWITCH_LOT_AUCTION_STATUS_MESSAGE_ID,
+    UNSUCCESSFUL_PRE_TERMINAL_STATUSES,
+    UNSUCCESSFUL_TERMINAL_STATUSES,
+    UPDATE_CONTRACT_MESSAGE_ID,
 )
 from openregistry.convoy.utils import retry_on_error, make_contract, LOGGER
 
@@ -57,23 +63,28 @@ class ProcessingLoki(object):
         lot_processing = 'merchandisingObject' in auction_doc
         contract_processing = 'contractTerms' in auction_doc
 
-        if lot_processing:
+        if lot_processing:  # lot ID, that auctions sells
 
-            lot = self._get_lot(auction_doc)
+            lot = self._get_lot(auction_doc)  # get lot from the registry
             if not lot:
                 return
 
-            lot_auction = self._check_lot_auction(lot, auction_doc)
+            lot_auction = self._check_lot_auction(lot, auction_doc)  # search for the auction in the lot
             if not lot_auction:
                 return
 
-        if auction_doc.status in UNSUCCESSFUL_TERMINAL_STATUSES:
+        # terminalize status of lot auction
+        terminalized_status = PRE_TERMINAL_MAPPING.get(auction_doc.status, auction_doc.status)
+
+        # update lot's auction status with actual auction status
+        if auction_doc.status in UNSUCCESSFUL_TERMINAL_STATUSES + UNSUCCESSFUL_PRE_TERMINAL_STATUSES:
             if lot_processing:
-                self._switch_auction_status(auction_doc.status, lot.id, lot_auction.id)
+                self._switch_auction_status(terminalized_status, lot.id, lot_auction.id)
             self.auctions_mapping.put(str(auction_doc.id), True)
 
-        elif auction_doc.status in SUCCESSFUL_TERMINAL_STATUSES:
+        elif auction_doc.status in SUCCESSFUL_TERMINAL_STATUSES + SUCCESSFUL_PRE_TERMINAL_STATUSES:
             if contract_processing and lot_processing:
+                # build contract regarding obligatoriness of it's fields
                 contract_data = make_contract(auction_doc)
                 try:
                     contract_data['transfer_token'] = self._extract_transfer_token(auction_doc['id'])
@@ -83,6 +94,7 @@ class ProcessingLoki(object):
                         "Failed to extract transfer token from auction {} ({})".format(auction_doc.id, message)
                     )
                     return
+                # create contract, if none of them are associated with lot
                 if lot.contracts[0].get('relatedProcessID') is None:
                     contract = self._post_contract({'data': contract_data})
                 else:
@@ -94,7 +106,8 @@ class ProcessingLoki(object):
                     )
                     return
             if lot_processing:
-                self._switch_auction_status(auction_doc.status, lot.id, lot_auction.id)
+                # update lot's auction status with actual auction status
+                self._switch_auction_status(terminalized_status, lot.id, lot_auction.id)
             if lot_processing and contract_processing:
                 self.update_lot_contract(lot, contract)
             self.auctions_mapping.put(str(auction_doc.id), True)
